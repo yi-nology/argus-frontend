@@ -1,0 +1,327 @@
+/* Argus 全局炫酷样式 —— 深空底 + 玻璃拟态 + 渐变强调 */
+
+:root {
+  --bg: #070b14;
+  --bg-2: #0d1424;
+  --glass: rgba(18, 28, 48, 0.72);
+  --border: rgba(88, 148, 255, 0.16);
+  --cyan: #22d3ee;
+  --violet: #8b5cf6;
+  --emerald: #34d399;
+  --amber: #fbbf24;
+  --rose: #fb7185;
+  --text: #e8eefc;
+  --text2: #93a4c3;
+  --text3: #5c6f92;
+  --grad: linear-gradient(135deg, #22d3ee 0%, #8b5cf6 55%, #d946ef 100%);
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(139, 92, 246, 0.18), transparent 55%),
+    radial-gradient(900px 500px at -10% 100%, rgba(34, 211, 238, 0.12), transparent 50%),
+    var(--bg);
+  font-family:
+    'Space Grotesk',
+    system-ui,
+    -apple-system,
+    'PingFang SC',
+    'Noto Sans CJK SC',
+    'Microsoft YaHei',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 星点背景层 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 38% 68%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1.5px 1.5px at 72% 18%, rgba(34, 211, 238, 0.5), transparent),
+    radial-gradient(1px 1px at 88% 74%, rgba(139, 92, 246, 0.5), transparent);
+  background-size: 100% 100%;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 玻璃面板 ---- */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.glass-hover {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+.glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 211, 238, 0.35);
+  box-shadow: 0 16px 48px rgba(34, 211, 238, 0.12);
+}
+
+/* ---- 渐变描边卡片 ---- */
+.gradient-border {
+  position: relative;
+  background: var(--glass);
+  border-radius: 16px;
+  padding: 1px;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 1px;
+  background: var(--grad);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.7;
+  transition: opacity 0.25s ease;
+}
+.gradient-border:hover::before {
+  opacity: 1;
+}
+.gradient-border > .inner {
+  border-radius: 15px;
+  background: rgba(13, 20, 36, 0.92);
+  padding: 18px 20px;
+  height: 100%;
+}
+
+/* ---- 发光主按钮 ---- */
+.glow-btn {
+  background: var(--grad) !important;
+  border: none !important;
+  color: #041018 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.4) !important;
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
+}
+.glow-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.55) !important;
+}
+
+/* ---- 渐变文字 ---- */
+.grad-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- 状态光点 ---- */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 10px currentColor;
+}
+.dot.ok {
+  background: var(--emerald);
+  color: var(--emerald);
+}
+.dot.err {
+  background: var(--rose);
+  color: var(--rose);
+}
+.dot.warn {
+  background: var(--amber);
+  color: var(--amber);
+}
+.dot.run {
+  background: var(--cyan);
+  color: var(--cyan);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.dot.mute {
+  background: var(--text3);
+  color: var(--text3);
+  box-shadow: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+/* ---- 顶部渐变线 ---- */
+.top-glow {
+  position: relative;
+}
+.top-glow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--grad);
+  opacity: 0.8;
+}
+
+/* ---- 页面容器 ---- */
+.page {
+  padding: 24px 28px 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  animation: fadeUp 0.35s ease both;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin: 0 0 4px;
+}
+
+.page-sub {
+  color: var(--text2);
+  font-size: 13px;
+  margin: 0 0 22px;
+}
+
+/* ---- 资格门检查行 ---- */
+.gate-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background 0.2s ease;
+}
+.gate-row + .gate-row {
+  margin-top: 6px;
+}
+.gate-row.ok {
+  background: rgba(52, 211, 153, 0.08);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+.gate-row.err {
+  background: rgba(251, 113, 133, 0.08);
+  border-color: rgba(251, 113, 133, 0.22);
+}
+.gate-row .code {
+  min-width: 160px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text2);
+}
+.gate-row .msg {
+  flex: 1;
+  font-size: 13px;
+}
+
+/* ---- 报告代码块 ---- */
+.report-box {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  background: rgba(5, 10, 20, 0.75);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+/* ---- Ant Design X 聊天区微调 ---- */
+.x-chat-wrap .ant-bubble {
+  --ant-bubble-content-bg: rgba(34, 211, 238, 0.1);
+}
+.x-chat-wrap .ant-bubble-start .ant-bubble-content {
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.22);
+}
+.x-chat-wrap .ant-sender {
+  border-radius: 14px;
+  border-color: rgba(34, 211, 238, 0.3);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.12);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(88, 148, 255, 0.25);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

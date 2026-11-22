@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Card, Col, List, Row, Tag, Typography, Button, Spin } from 'antd'
+import { Card, Col, Row, Tag, Typography, Button, Spin } from 'antd'
 import {
   RocketOutlined,
   CheckCircleOutlined,
@@ -102,39 +102,40 @@ export default function Dashboard() {
           </Button>
         }
       >
-        <List
-          dataSource={tasks.slice(0, 8)}
-          locale={{ emptyText: '暂无任务，去创建一个审查吧' }}
-          renderItem={(t) => (
-            <List.Item
-              style={{ cursor: 'pointer', borderRadius: 10 }}
+        <div>
+          {tasks.slice(0, 8).map((t) => (
+            <div
+              key={t.id || t.task_id}
               onClick={() => nav(`/tasks/${t.id || t.task_id}`)}
-              actions={[
-                <Tag key="v" color={verdictColor[t.verdict || ''] || 'default'}>
-                  {t.verdict || '—'}
-                </Tag>,
-              ]}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                padding: '10px 8px', borderRadius: 10, borderBottom: '1px solid rgba(88,148,255,0.08)',
+              }}
             >
-              <List.Item.Meta
-                title={
-                  <span>
-                    <StatusDot status={t.status} />{' '}
-                    <span className="mono" style={{ fontSize: 12, opacity: 0.75 }}>
-                      {(t.id || t.task_id || '').slice(0, 14)}
-                    </span>{' '}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <StatusDot status={t.status} />
+                  <span className="mono" style={{ fontSize: 12, opacity: 0.7 }}>
+                    {(t.id || t.task_id || '').slice(0, 14)}
+                  </span>
+                  <span style={{ fontSize: 13 }}>
                     {t.platform}/{t.owner}/{t.repo}#{t.number}
                   </span>
-                }
-                description={
-                  <span className="mono" style={{ fontSize: 11 }}>
-                    head {(t.head_sha || '').slice(0, 10) || '—'} · {t.kind || 'review'} ·{' '}
-                    {(t.updated_at || '').slice(0, 19)}
-                  </span>
-                }
-              />
-            </List.Item>
+                </div>
+                <div className="mono" style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
+                  head {(t.head_sha || '').slice(0, 10) || '—'} · {t.kind || 'review'} ·{' '}
+                  {(t.updated_at || '').slice(0, 19)}
+                </div>
+              </div>
+              <Tag color={verdictColor[t.verdict || ''] || 'default'}>{t.verdict || '—'}</Tag>
+            </div>
+          ))}
+          {tasks.length === 0 && (
+            <div style={{ padding: 24, textAlign: 'center', opacity: 0.6, fontSize: 13 }}>
+              暂无任务，去创建一个审查吧
+            </div>
           )}
-        />
+        </div>
       </Card>
     </div>
   )

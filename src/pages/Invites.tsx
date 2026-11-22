@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Form, Input, Select, Space, Tag, Typography, App, Button, List } from 'antd'
+import { Card, Form, Input, Select, Space, Tag, Typography, App, Button } from 'antd'
 import { UserAddOutlined, CopyOutlined, LinkOutlined } from '@ant-design/icons'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
@@ -78,20 +78,18 @@ export default function Invites() {
             <Button icon={<CopyOutlined />} onClick={() => navigator.clipboard?.writeText(result.token)}>
               复制 token
             </Button>
-            <List
-              size="small"
-              dataSource={[
+            <div style={{ display: 'grid', gap: 6 }}>
+              {([
                 ['invite_id', result.invite_id],
                 ['role', result.role],
                 ['expires', new Date((result.expires_at || 0) * 1000).toISOString()],
-              ]}
-              renderItem={([k, v]) => (
-                <List.Item>
-                  <span style={{ opacity: 0.6 }}>{k}</span>
-                  <span className="mono">{v}</span>
-                </List.Item>
-              )}
-            />
+              ] as const).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ opacity: 0.6, fontSize: 12 }}>{k}</span>
+                  <span className="mono" style={{ fontSize: 12 }}>{v}</span>
+                </div>
+              ))}
+            </div>
           </Space>
         </Card>
       )}

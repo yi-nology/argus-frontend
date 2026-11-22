@@ -228,7 +228,21 @@ export const api = {
       { method: 'POST', body: payload },
     ),
 
-  // Q&A（Assistant 页）
-  ask: (payload: { platform: string; owner: string; repo: string; number: string; question: string }) =>
-    request<{ answer?: string; report?: string }>('/tasks', { method: 'POST', body: { ...payload, kind: 0 } }),
+  // Q&A（Assistant 页；与 MCP ask_argus 同源 ReviewQA）
+  ask: (payload: {
+    platform: string
+    owner: string
+    repo: string
+    number: string
+    question?: string
+  }) =>
+    request<{ ok: boolean; answer?: string; review?: Record<string, string>; message: string }>(
+      '/ask',
+      { method: 'POST', body: payload },
+    ),
+  askLatest: (query: { platform: string; owner: string; repo: string; number: string }) =>
+    request<{ ok: boolean; answer?: string; review?: Record<string, string>; message: string }>(
+      '/ask/review',
+      { query: query as any },
+    ),
 }

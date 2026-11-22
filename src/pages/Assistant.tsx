@@ -3,6 +3,7 @@ import { Bubble, Sender, Prompts } from '@ant-design/x'
 import { XMarkdown } from '@ant-design/x-markdown'
 import { App, Avatar, Button, Card, Form, Input, Space, Tag, Typography } from 'antd'
 import { RobotOutlined, UserOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
 type Msg = { id: string; role: 'user' | 'assistant'; content: string }
@@ -14,7 +15,7 @@ const SUGGESTIONS = [
 ]
 
 export default function Assistant() {
-  const { user } = useAuth()
+  useAuth()
   const { message } = App.useApp()
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [loading, setLoading] = useState(false)
@@ -31,25 +32,41 @@ export default function Assistant() {
 
     try {
       const hasTarget = target.owner && target.repo && target.number
-      const answer = hasTarget
-        ? [
-            `**已定位目标** \`${target.platform}/${target.owner}/${target.repo}#${target.number}\``,
-            '',
-            `问题：${text}`,
-            '',
-            '> 当前 HTTP 面暂无独立 ask 端点；请经 MCP `ask_argus` 或 PR 评论 `@argus ask` 驱动 Q&A。',
-            '> 受控写仍走：**审批票 → 推送 confirm → 合并资格门**。',
-            '',
-            `会话用户：${user?.username}（${user?.role || user?.scope}）`,
-          ].join('\n')
-        : [
-            `收到：${text}`,
-            '',
-            '请先在上方填写 **platform / owner / repo / PR#**，我才能绑定审查上下文。',
-            '',
-            '也可直接使用侧栏：审查任务 · 修复审批 · 合并资格门 · 受控推送。',
-          ].join('\n')
-
+      if (!hasTarget) {
+        setMsgs((m) =>
+          m.map((x) =>
+            x.id === aid
+              ? {
+                  ...x,
+                  content: [
+                    `收到：${text}`,
+                    '',
+                    '请先在上方填写 **platform / owner / repo / PR#**，我才能绑定审查上下文。',
+                    '',
+                    '也可直接使用侧栏：审查任务 · 修复审批 · 合并资格门 · 受控推送。',
+                  ].join('\n'),
+                }
+              : x,
+          ),
+        )
+        return
+      }
+      const res = await api.ask({
+        platform: target.platform,
+        owner: target.owner,
+        repo: target.repo,
+        number: target.number,
+        question: text,
+      })
+      const answer =
+        res.answer ||
+        (res.review
+          ? [
+              `**最新审查结论** \`${target.platform}/${target.owner}/${target.repo}#${target.number}\``,
+              '',
+              ...Object.entries(res.review).map(([k, v]) => `- **${k}**: ${v}`),
+            ].join('\n')
+          : res.message || '（无结论）')
       setMsgs((m) => m.map((x) => (x.id === aid ? { ...x, content: answer } : x)))
     } catch (e: any) {
       message.error(e?.message || '发送失败')

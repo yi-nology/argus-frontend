@@ -245,4 +245,44 @@ export const api = {
       '/ask/review',
       { query: query as any },
     ),
+
+  // ---- 仓库设置（/repo-settings；写档 admin，仓库维度授权） ----
+  listRepoSettings: () =>
+    request<{ settings?: RepoSettingRow[] }>('/repo-settings'),
+  getRepoSettings: (platform: string, owner: string, repo: string) =>
+    request<RepoSettingRow>(
+      `/repo-settings/${encodeURIComponent(platform)}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+    ),
+  putRepoSettings: (platform: string, owner: string, repo: string, settings: RepoSettingsValues) =>
+    request<RepoSettingRow>(
+      `/repo-settings/${encodeURIComponent(platform)}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+      { method: 'PUT', body: settings },
+    ),
+  deleteRepoSettings: (platform: string, owner: string, repo: string) =>
+    request<{ deleted: boolean }>(
+      `/repo-settings/${encodeURIComponent(platform)}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+      { method: 'DELETE' },
+    ),
+}
+
+/** 仓库设置值集（与后端 reposettings.Settings JSON 契约一致；缺省=继承全局）。 */
+export interface RepoSettingsValues {
+  monthly_token_budget?: number
+  task_token_budget?: number
+  max_diff_chars?: number
+  report_template?: string
+  comment_throttle_minutes?: number
+  findings_cap?: number
+  severity_floor?: string
+  ocr_delegate_enabled?: boolean
+}
+
+export interface RepoSettingRow {
+  platform: string
+  owner: string
+  repo: string
+  settings?: RepoSettingsValues
+  settings_json?: string
+  updated_by?: string
+  updated_at?: string
 }

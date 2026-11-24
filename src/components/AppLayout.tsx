@@ -1,5 +1,6 @@
 import { Layout, Menu, Tag, Typography, Space, Button, Avatar, Dropdown } from 'antd'
 import {
+  ControlOutlined,
   DashboardOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
@@ -24,6 +25,7 @@ const NAV = [
   { key: '/merges', icon: <MergeCellsOutlined />, label: '合并资格门' },
   { key: '/fix-push', icon: <SendOutlined />, label: '受控推送' },
   { key: '/assistant', icon: <RobotOutlined />, label: 'Argus 助手' },
+  { key: '/settings/repos', icon: <ControlOutlined />, label: '仓库设置' },
   { key: '/invites', icon: <UserAddOutlined />, label: '邀请成员' },
   { key: '/me', icon: <IdcardOutlined />, label: '我的权限' },
 ]

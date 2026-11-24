@@ -22,6 +22,14 @@ const STATUS_OPTIONS = [
   { label: '已抑制', value: 'suppressed' },
 ]
 
+const SEVERITY_OPTIONS = [
+  { label: '全部级别', value: '' },
+  { label: 'critical', value: 'critical' },
+  { label: 'high', value: 'high' },
+  { label: 'medium', value: 'medium' },
+  { label: 'low', value: 'low' },
+]
+
 function fmtTime(unix?: number): string {
   if (!unix) return '—'
   return dayjs.unix(unix).format('MM-DD HH:mm')
@@ -39,6 +47,8 @@ export default function Findings() {
   const [owner, setOwner] = useState('')
   const [repo, setRepo] = useState('')
   const [status, setStatus] = useState('')
+  const [sev, setSev] = useState('')
+  const [kw, setKw] = useState('')
   const [rows, setRows] = useState<FindingRow[]>([])
   const [counts, setCounts] = useState<{ total: number; open: number; suppressed: number } | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -98,6 +108,15 @@ export default function Findings() {
       message.error(e?.message || '恢复失败（需要 admin 档 token）')
     }
   }
+
+  const visibleRows = rows.filter((r) => {
+    if (sev && (r.severity || '').toLowerCase() !== sev) return false
+    if (kw) {
+      const hay = `${r.file ?? ''} ${r.comment ?? ''} ${r.fingerprint}`
+      if (!hay.toLowerCase().includes(kw.toLowerCase())) return false
+    }
+    return true
+  })
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto' }}>
@@ -167,11 +186,28 @@ export default function Findings() {
             size="small"
             title="意见指纹清单"
             extra={(
-              <Segmented
-                value={status}
-                onChange={(v) => setStatus(v as string)}
-                options={STATUS_OPTIONS}
-              />
+              <Space wrap size={8}>
+                <Segmented
+                  value={status}
+                  onChange={(v) => setStatus(v as string)}
+                  options={STATUS_OPTIONS}
+                />
+                <Select
+                  size="small"
+                  style={{ width: 130 }}
+                  value={sev}
+                  onChange={setSev}
+                  options={SEVERITY_OPTIONS}
+                />
+                <Input
+                  size="small"
+                  allowClear
+                  placeholder="搜索文件 / 意见 / fp"
+                  style={{ width: 200 }}
+                  value={kw}
+                  onChange={(e) => setKw(e.target.value)}
+                />
+              </Space>
             )}
           >
             {(() => {
@@ -188,7 +224,7 @@ export default function Findings() {
             <Table<FindingRow>
               rowKey={(r) => `${r.number}:${r.fingerprint}`}
               loading={loading}
-              dataSource={rows}
+              dataSource={visibleRows}
               pagination={{ pageSize: 20, showSizeChanger: false }}
               columns={[
                 {

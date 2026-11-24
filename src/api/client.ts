@@ -52,6 +52,25 @@ export interface TaskRow {
   tokens_used?: number
 }
 
+/** 意见治理行（GET /findings；finding_prints 跨 PR 视图）。 */
+export interface FindingRow {
+  platform: string
+  owner: string
+  repo: string
+  number: string
+  fingerprint: string
+  file?: string
+  line?: number
+  severity?: string
+  comment?: string
+  status?: string
+  plugin?: string
+  times_seen?: number
+  regret_count?: number
+  first_seen_at?: number
+  last_seen_at?: number
+}
+
 export interface GateCheck {
   code: string
   ok: boolean
@@ -264,6 +283,28 @@ export const api = {
       `/repo-settings/${encodeURIComponent(platform)}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
       { method: 'DELETE' },
     ),
+
+  // ---- 意见治理（/findings）：清单 read 档，抑制/恢复 admin 档 ----
+  listFindings: (query: { platform: string; owner: string; repo: string; status?: string; limit?: number }) =>
+    request<{
+      findings?: FindingRow[]
+      counts?: { total: number; open: number; suppressed: number }
+      limit?: number
+    }>('/findings', { query: query as any }),
+  suppressFinding: (payload: {
+    platform: string
+    owner: string
+    repo: string
+    number: string
+    fingerprint: string
+  }) => request<{ matched: boolean; fingerprint: string }>('/findings/suppress', { method: 'POST', body: payload }),
+  restoreFinding: (payload: {
+    platform: string
+    owner: string
+    repo: string
+    number: string
+    fp: string
+  }) => request<{ matched: boolean }>('/findings/restore', { method: 'POST', body: payload }),
 }
 
 /** 仓库设置值集（与后端 reposettings.Settings JSON 契约一致；缺省=继承全局）。 */

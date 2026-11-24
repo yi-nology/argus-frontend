@@ -14,6 +14,7 @@ import Merges from './pages/Merges'
 import FixPush from './pages/FixPush'
 import Assistant from './pages/Assistant'
 import RepoSettings from './pages/RepoSettings'
+import Findings from './pages/Findings'
 import Invites from './pages/Invites'
 import Me from './pages/Me'
 import type { ReactNode } from 'react'
@@ -51,6 +52,7 @@ function Shell() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="tasks/:taskId" element={<TaskDetail />} />
+        <Route path="findings" element={<Findings />} />
         <Route path="approvals" element={<Approvals />} />
         <Route path="merges" element={<Merges />} />
         <Route path="fix-push" element={<FixPush />} />

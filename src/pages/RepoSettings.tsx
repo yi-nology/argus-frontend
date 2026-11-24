@@ -8,9 +8,7 @@ import {
   ThunderboltOutlined, EyeOutlined, DeleteOutlined, InfoCircleOutlined, BarChartOutlined,
 } from '@ant-design/icons'
 import { api, type RepoSettingsValues } from '../api/client'
-
-/** 平台词表（与后端 config.SupportedPlatforms 对齐；七平台）。 */
-const PLATFORMS = ['gitlab', 'github', 'gitea', 'forgejo', 'bitbucket', 'azure-devops', 'tencentcode']
+import { PLATFORMS } from '../constants/platforms'
 
 /** 级别地板选项 → severity_floor 值（''=全报）。 */
 const FLOOR_OPTIONS = [

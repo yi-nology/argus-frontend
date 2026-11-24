@@ -4,8 +4,8 @@ import { PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
+import { PLATFORMS } from '../constants/platforms'
 
-const PLATFORMS = ['gitea', 'forgejo', 'github', 'gitlab', 'gitee', 'gitcode', 'tencent_code']
 const verdictColor: Record<string, string> = {
   approve: 'success', comment: 'warning', request_changes: 'error',
 }

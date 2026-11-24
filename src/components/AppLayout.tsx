@@ -11,6 +11,7 @@ import {
   IdcardOutlined,
   LogoutOutlined,
   ThunderboltOutlined,
+  BugOutlined,
 } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -21,6 +22,7 @@ const { Header, Sider, Content } = Layout
 const NAV = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
   { key: '/tasks', icon: <RocketOutlined />, label: '审查任务' },
+  { key: '/findings', icon: <BugOutlined />, label: '意见治理' },
   { key: '/approvals', icon: <SafetyCertificateOutlined />, label: '修复审批' },
   { key: '/merges', icon: <MergeCellsOutlined />, label: '合并资格门' },
   { key: '/fix-push', icon: <SendOutlined />, label: '受控推送' },

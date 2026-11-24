@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Card, Col, Row, Tag, Typography, Button, Spin } from 'antd'
+import { Card, Col, Row, Statistic, Tag, Typography, Button, Spin } from 'antd'
 import {
   RocketOutlined,
   CheckCircleOutlined,
   CommentOutlined,
   CloseCircleOutlined,
   FireOutlined,
+  EyeInvisibleOutlined,
+  MinusCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
@@ -87,6 +90,38 @@ export default function Dashboard() {
           </Col>
         </Row>
       </Spin>
+
+      <Card
+        className="glass"
+        size="small"
+        style={{ marginTop: 16 }}
+        title={<span><CommentOutlined /> 回复控制（30 天）</span>}
+        extra={<Button type="link" onClick={() => nav('/settings/repos')}>按仓设置 →</Button>}
+      >
+        <Row gutter={[16, 8]}>
+          <Col xs={8}>
+            <Statistic
+              title={<span><ClockCircleOutlined /> 节流跳过回帖</span>}
+              value={stats?.reply_throttled ?? 0}
+              suffix="次"
+            />
+          </Col>
+          <Col xs={8}>
+            <Statistic
+              title={<span><EyeInvisibleOutlined /> 低于级别地板静默</span>}
+              value={stats?.silenced_floor ?? 0}
+              suffix="条"
+            />
+          </Col>
+          <Col xs={8}>
+            <Statistic
+              title={<span><MinusCircleOutlined /> 超出数量上限静默</span>}
+              value={stats?.silenced_cap ?? 0}
+              suffix="条"
+            />
+          </Col>
+        </Row>
+      </Card>
 
       <Card
         className="glass"

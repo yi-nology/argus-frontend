@@ -9,6 +9,7 @@ import {
 import dayjs from 'dayjs'
 import { api, type FindingRow } from '../api/client'
 import { PLATFORMS } from '../constants/platforms'
+import { useAuth } from '../auth/AuthContext'
 
 /** 级别配色（critical 最高；与报告渲染的严重度词表一致）。 */
 const SEVERITY_COLOR: Record<string, string> = {
@@ -32,6 +33,8 @@ function fmtTime(unix?: number): string {
  */
 export default function Findings() {
   const { message } = App.useApp()
+  const { user } = useAuth()
+  const canWrite = user?.scope === 'admin' || user?.role === 'admin'
   const [platform, setPlatform] = useState('gitlab')
   const [owner, setOwner] = useState('')
   const [repo, setRepo] = useState('')
@@ -240,8 +243,15 @@ export default function Findings() {
                 },
                 {
                   title: '操作', width: 110,
-                  render: (_, r) => (
-                    r.status === 'suppressed' ? (
+                  render: (_, r) => {
+                    if (!canWrite) {
+                      return (
+                        <Tooltip title="抑制/恢复需要 admin 档 token">
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>只读</Typography.Text>
+                        </Tooltip>
+                      )
+                    }
+                    return r.status === 'suppressed' ? (
                       <Popconfirm
                         title="恢复该意见？"
                         description="下一轮审查起重新出现在报告中。"
@@ -260,7 +270,7 @@ export default function Findings() {
                         <Button size="small" danger icon={<DeleteOutlined />}>抑制</Button>
                       </Popconfirm>
                     )
-                  ),
+                  },
                 },
               ]}
             />

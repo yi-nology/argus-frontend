@@ -1,0 +1,81 @@
+# argus-frontend 43 部署（静态 SPA + /api 同源反代）。
+# 部署序列（仓库根执行；dist 需先 npm run build）：
+#   1. rsync/scp dist/ → 43:/opt/argus-frontend/dist   （hostPath，1.4M 超 ConfigMap 1M 上限）
+#   2. kubectl create configmap argus-frontend-nginx --from-file=default.conf=deploy/nginx.conf \
+#        --dry-run=client -o yaml | kubectl apply -f -   （配置单源：文件即真相）
+#   3. kubectl apply -f deploy/k8s-frontend.yaml
+# 访问：http://10.60.226.43:30880 （NodePort；后端 API 同源 /api/* 反代免 CORS）
+# nodeSelector pin master01：hostPath 卷与 scp 落点同节点（local-path 同款约束）。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-frontend
+  namespace: argus
+  labels:
+    app: argus-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argus-frontend
+  template:
+    metadata:
+      labels:
+        app: argus-frontend
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: ubuntu-2404-k3s-master01
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+            - name: conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+      volumes:
+        - name: html
+          hostPath:
+            path: /opt/argus-frontend/dist
+            type: Directory
+        - name: conf
+          configMap:
+            name: argus-frontend-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-frontend
+  namespace: argus
+  labels:
+    app: argus-frontend
+spec:
+  type: NodePort
+  selector:
+    app: argus-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30880   # 与 argus 后端 30899 相邻，好记

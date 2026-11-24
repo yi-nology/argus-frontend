@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   App, Button, Card, Col, Empty, Input, Popconfirm, Row, Segmented, Select, Space,
   Statistic, Table, Tag, Tooltip, Typography,
@@ -7,6 +7,7 @@ import {
   BugOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined, UndoOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useSearchParams } from 'react-router-dom'
 import { api, type FindingRow } from '../api/client'
 import { PLATFORMS } from '../constants/platforms'
 import { useAuth } from '../auth/AuthContext'
@@ -43,9 +44,10 @@ export default function Findings() {
   const { message } = App.useApp()
   const { user } = useAuth()
   const canWrite = user?.scope === 'admin' || user?.role === 'admin'
-  const [platform, setPlatform] = useState('gitlab')
-  const [owner, setOwner] = useState('')
-  const [repo, setRepo] = useState('')
+  const [params] = useSearchParams()
+  const [platform, setPlatform] = useState(params.get('platform') || 'gitlab')
+  const [owner, setOwner] = useState(params.get('owner') || '')
+  const [repo, setRepo] = useState(params.get('repo') || '')
   const [status, setStatus] = useState('')
   const [sev, setSev] = useState('')
   const [kw, setKw] = useState('')
@@ -75,6 +77,15 @@ export default function Findings() {
       setLoading(false)
     }
   }
+
+  // 从任务详情跳转（带 platform/owner/repo 查询参数）时自动加载一次
+  const autoLoaded = useRef(false)
+  useEffect(() => {
+    if (autoLoaded.current) return
+    autoLoaded.current = true
+    if (owner && repo) load(platform, owner, repo, '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 切换状态过滤：已加载过仓库则立即重查（未加载时只更新选择）
   useEffect(() => {

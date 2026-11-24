@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Descriptions, Space, Spin, Tag, Typography } from 'antd'
+import { Button, Card, Descriptions, Space, Spin, Tag, Tooltip, Typography } from 'antd'
 import { XMarkdown } from '@ant-design/x-markdown'
 import { ArrowLeftOutlined, SafetyCertificateOutlined, MergeCellsOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -49,6 +49,27 @@ export default function TaskDetail() {
             )},
             { key: 'fix', label: 'fix_status', children: <span className="mono">{task.fix_status || '—'}</span> },
             { key: 'tok', label: 'tokens', children: <span className="mono">{task.tokens_used ?? '—'}</span> },
+            {
+              key: 'reply', label: '回帖',
+              children: task.reply_state === 'throttled'
+                ? <Tag color="orange">节流跳过</Tag>
+                : task.reply_state === 'posted'
+                  ? <Tag color="success">已回帖</Tag>
+                  : <span className="mono">—</span>,
+            },
+            {
+              key: 'silenced', label: '静默',
+              children: (() => {
+                const floor = task.silenced_floor ?? 0
+                const cap = task.silenced_cap ?? 0
+                if (floor + cap === 0) return <span className="mono">—</span>
+                return (
+                  <Tooltip title={`低于级别地板 ${floor} 条；超出数量上限 ${cap} 条（完整结果见报告尾注）`}>
+                    <Tag>{floor + cap} 条</Tag>
+                  </Tooltip>
+                )
+              })(),
+            },
           ]}
         />
         <Space style={{ marginTop: 12 }}>

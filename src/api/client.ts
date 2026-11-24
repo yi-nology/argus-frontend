@@ -50,6 +50,11 @@ export interface TaskRow {
   updated_at?: string
   report?: string
   tokens_used?: number
+  /** 回帖结果（v8.5.0）：posted | throttled | 空（未达回帖出口）。 */
+  reply_state?: string
+  /** 按仓回复控制静默条数（v8.5.0）：floor/cap 分列。 */
+  silenced_floor?: number
+  silenced_cap?: number
 }
 
 /** 意见治理行（GET /findings；finding_prints 跨 PR 视图）。 */

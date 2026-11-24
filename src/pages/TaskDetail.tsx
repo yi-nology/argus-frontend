@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Descriptions, Space, Spin, Tag, Typography } from 'antd'
+import { XMarkdown } from '@ant-design/x-markdown'
 import { ArrowLeftOutlined, SafetyCertificateOutlined, MergeCellsOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
@@ -61,7 +62,11 @@ export default function TaskDetail() {
       </Card>
 
       <Card className="glass" title="审查报告">
-        <div className="report-box">{task.report || '(无报告)'}</div>
+        {task.report ? (
+          <div className="report-md"><XMarkdown>{task.report}</XMarkdown></div>
+        ) : (
+          <Typography.Text type="secondary">(无报告)</Typography.Text>
+        )}
       </Card>
     </div>
   )

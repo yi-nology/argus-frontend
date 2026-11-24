@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert, App, Button, Card, Col, Empty, Input, InputNumber, Popconfirm,
-  Row, Segmented, Select, Slider, Space, Spin, Switch, Tag, Tooltip, Typography,
+  Row, Segmented, Select, Slider, Space, Spin, Statistic, Switch, Tag, Tooltip, Typography,
 } from 'antd'
 import {
   CommentOutlined, ControlOutlined, ReloadOutlined, SaveOutlined,
-  ThunderboltOutlined, EyeOutlined, DeleteOutlined, InfoCircleOutlined,
+  ThunderboltOutlined, EyeOutlined, DeleteOutlined, InfoCircleOutlined, BarChartOutlined,
 } from '@ant-design/icons'
 import { api, type RepoSettingsValues } from '../api/client'
 
@@ -68,6 +68,9 @@ export default function RepoSettings() {
   const [dirty, setDirty] = useState(false)
   const [state, setState] = useState<FormState>(DEFAULTS)
   const [overrides, setOverrides] = useState<string[]>([])
+  /** 近 30 天生效情况（stats/overview 按仓行；null = 无任务）。 */
+  const [effect, setEffect] = useState<any>(null)
+  const effectSeq = useRef(0)
 
   const patch = (p: Partial<FormState>) => {
     setState((s) => ({ ...s, ...p }))
@@ -90,6 +93,7 @@ export default function RepoSettings() {
       return
     }
     setLoading(true)
+    setEffect(null)
     try {
       const row = await api.getRepoSettings(p, o, r)
       const v: RepoSettingsValues = row?.settings ?? (row?.settings_json ? JSON.parse(row.settings_json) : {})
@@ -105,6 +109,16 @@ export default function RepoSettings() {
       })
       setLoaded(true)
       setDirty(false)
+      // 生效情况（v8.5.0）：统计窗口内的任务量/节流次数/静默条数，
+      // 让「旋钮是否真的生效」可验证而不是只写在表单里。
+      const seq = ++effectSeq.current
+      api.statsOverview({ days: 30, platform: p, owner: o, repo: r })
+        .then((s) => {
+          if (seq === effectSeq.current) setEffect((s?.repos ?? [])[0] ?? null)
+        })
+        .catch(() => {
+          if (seq === effectSeq.current) setEffect(null)
+        })
     } catch (e: any) {
       // 404 = 无覆盖（全新仓库）：给默认值而非报错
       setState(DEFAULTS)
@@ -300,6 +314,40 @@ export default function RepoSettings() {
                 </Typography.Text>
               </Space>
             </div>
+          </Card>
+
+          {/* ===== 近 30 天生效情况（v8.5.0：旋钮效果可验证） ===== */}
+          <Card
+            size="small"
+            title={<Space><BarChartOutlined />近 30 天生效情况</Space>}
+            style={{ marginBottom: 16 }}
+          >
+            {effect ? (
+              <>
+                <Row gutter={[24, 8]}>
+                  <Col xs={12} md={6}><Statistic title="审查任务" value={effect.tasks_done ?? 0} /></Col>
+                  <Col xs={12} md={6}>
+                    <Statistic
+                      title="节流跳过回帖"
+                      value={effect.reply_throttled ?? 0}
+                      suffix="次"
+                      valueStyle={{ color: (effect.reply_throttled ?? 0) > 0 ? '#fbbf24' : undefined }}
+                    />
+                  </Col>
+                  <Col xs={12} md={6}>
+                    <Statistic title="低于级别地板静默" value={effect.silenced_floor ?? 0} suffix="条" />
+                  </Col>
+                  <Col xs={12} md={6}>
+                    <Statistic title="超出数量上限静默" value={effect.silenced_cap ?? 0} suffix="条" />
+                  </Col>
+                </Row>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  静默只影响回帖/行内意见，审查与报告仍全量执行；每份报告的尾注会列出本轮静默条数。
+                </Typography.Text>
+              </>
+            ) : (
+              <Typography.Text type="secondary">近 30 天暂无已完成审查任务。</Typography.Text>
+            )}
           </Card>
 
           {/* ===== 预算与上限 ===== */}

@@ -179,7 +179,8 @@ export const api = {
     repo: string
     number: string
   }) => request<any>('/tasks', { method: 'POST', body: payload }),
-  statsOverview: (query?: { days?: number }) => request<any>('/stats/overview', { query: query as any }),
+  statsOverview: (query?: { days?: number; platform?: string; owner?: string; repo?: string }) =>
+    request<any>('/stats/overview', { query: query as any }),
 
   listFixApprovals: (query: { platform: string; owner: string; repo: string; number: string }) =>
     request<{ tickets: FixTicket[]; pending_count?: number; head_sha?: string }>('/fix-approvals', {

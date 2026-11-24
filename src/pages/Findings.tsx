@@ -171,6 +171,17 @@ export default function Findings() {
               />
             )}
           >
+            {(() => {
+              const expected = status === 'open' ? counts?.open
+                : status === 'suppressed' ? counts?.suppressed
+                  : counts?.total
+              if (!counts || (expected ?? 0) <= rows.length) return null
+              return (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  仅显示最近 {rows.length} 条（共 {expected} 条）；可用状态过滤缩小范围。
+                </Typography.Text>
+              )
+            })()}
             <Table<FindingRow>
               rowKey={(r) => `${r.number}:${r.fingerprint}`}
               loading={loading}

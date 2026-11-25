@@ -51,6 +51,9 @@ export default function FixPush() {
   const [prev, setPrev] = useState<FixPushPreview | null>(null)
   const [result, setResult] = useState<FixPushResult | null>(null)
   const [tasks, setTasks] = useState<TaskRow[]>([])
+  /** 最近任务下拉当前选中项（backend 在推送环未启用时 preview 不返回 task_id/head，
+   *  用任务清单里的已知值补展示与导航）。 */
+  const [pickedTaskId, setPickedTaskId] = useState<string | undefined>()
   const [forbidden, setForbidden] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -88,7 +91,10 @@ export default function FixPush() {
     }
   }
 
-  const preview = () => doPreview(q())
+  const preview = () => {
+    setPickedTaskId(undefined)
+    void doPreview(q())
+  }
 
   // 从任务详情/审批页带坐标跳转时预填并自动预览；同时载入最近任务供一键选择。
   useEffect(() => {
@@ -104,7 +110,15 @@ export default function FixPush() {
       if (coords.owner && coords.repo && coords.number) void doPreview(coords)
     }
     api.listTasks({ limit: 30 })
-      .then((rows) => setTasks(rows.filter((t) => !!t.head_sha && !!t.id)))
+      .then((rows) => {
+        const list = rows.filter((t) => !!t.head_sha && !!t.id)
+        setTasks(list)
+        // 带参跳转时把坐标对回任务清单，推送环未启用也能展示 task/head 与详情入口。
+        const match = list.find((t) =>
+          t.platform === coords.platform && t.owner === coords.owner &&
+          t.repo === coords.repo && String(t.number) === coords.number)
+        if (match) setPickedTaskId((match.id || match.task_id) as string)
+      })
       .catch(() => {/* 任务清单失败不阻断手输 */})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -119,6 +133,7 @@ export default function FixPush() {
       number: String(t.number || ''),
     }
     form.setFieldsValue(coords)
+    setPickedTaskId((t.id || t.task_id) as string)
     void doPreview(coords)
   }
 
@@ -154,14 +169,17 @@ export default function FixPush() {
     return `/approvals?platform=${encodeURIComponent(v.platform)}&owner=${encodeURIComponent(v.owner)}&repo=${encodeURIComponent(v.repo)}&number=${encodeURIComponent(v.number)}`
   }
 
+  const pickedTask = tasks.find((t) => (t.id || t.task_id) === pickedTaskId)
+  const knownTaskId = prev?.task_id || pickedTaskId
+  const knownHead = prev?.head_sha || pickedTask?.head_sha
   const confirmable = !!prev?.ready && prev.mode === 'confirm' && !!prev.task_id && !!prev.head_sha
 
   const checks = prev
     ? [
-        { ok: !!prev.task_id, label: '任务存在' },
-        { ok: !!prev.head_sha, label: 'head 已绑定' },
+        { ok: !!knownTaskId, label: '任务存在' },
+        { ok: !!knownHead, label: 'head 已绑定' },
         { ok: prev.mode === 'confirm', label: `推送模式 ${prev.mode || '—'}` },
-        { ok: (prev.pending_approvals ?? 0) === 0, label: `高危审批齐备（${prev.pending_approvals ?? 0} 待批）` },
+        { ok: !!knownTaskId && (prev.pending_approvals ?? 0) === 0, label: `高危审批齐备（${prev.pending_approvals ?? 0} 待批）` },
         { ok: prev.ready, label: '后端判定 READY' },
       ]
     : []
@@ -206,7 +224,7 @@ export default function FixPush() {
             allowClear
             placeholder="从最近任务载入（自动填充并预览）"
             style={{ flex: '1 1 420px', maxWidth: 560 }}
-            value={undefined}
+            value={pickedTaskId}
             options={tasks.map((t) => ({
               value: t.id || t.task_id || '',
               label: `${t.platform}/${t.owner}/${t.repo}#${t.number} · ${t.status}`,
@@ -214,7 +232,10 @@ export default function FixPush() {
             filterOption={(input, opt) =>
               String(opt?.label || '').toLowerCase().includes(input.toLowerCase())
             }
-            onChange={(id) => id && pickTask(String(id))}
+            onChange={(id) => {
+              if (!id) { setPickedTaskId(undefined); return }
+              pickTask(String(id))
+            }}
             disabled={!canDecide}
           />
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -314,8 +335,8 @@ export default function FixPush() {
             }
             extra={
               <Space>
-                {prev.task_id && (
-                  <Button size="small" onClick={() => nav(`/tasks/${prev.task_id}`)}>任务详情</Button>
+                {knownTaskId && (
+                  <Button size="small" onClick={() => nav(`/tasks/${knownTaskId}`)}>任务详情</Button>
                 )}
                 <Button size="small" icon={<ReloadOutlined />} onClick={preview}>刷新</Button>
               </Space>
@@ -347,8 +368,8 @@ export default function FixPush() {
                   column={{ xs: 1, md: 2 }}
                   colon={false}
                   items={[
-                    { key: 'task', label: 'task_id', children: <span className="mono">{prev.task_id || '—'}</span> },
-                    { key: 'head', label: 'head', children: <span className="mono">{(prev.head_sha || '').slice(0, 16) || '—'}</span> },
+                    { key: 'task', label: 'task_id', children: <span className="mono">{knownTaskId || '—'}</span> },
+                    { key: 'head', label: 'head', children: <span className="mono">{(knownHead || '').slice(0, 16) || '—'}</span> },
                     { key: 'fix', label: 'fix_status', children: <Tag>{prev.fix_status || '—'}</Tag> },
                     { key: 'mode', label: 'mode', children: <Tag>{prev.mode || '—'}</Tag> },
                   ]}

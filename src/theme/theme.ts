@@ -2,6 +2,7 @@
  * Argus 暗色主题（antd v6 token + 自定义 CSS 变量）。
  * 基调：石墨深底 + 克制的蓝紫强调；渐变/光晕只作极轻点缀，数据可读性优先。
  */
+import { theme } from 'antd'
 import type { ThemeConfig } from 'antd'
 
 export const palette = {
@@ -22,7 +23,9 @@ export const palette = {
 }
 
 export const antdTheme: ThemeConfig = {
-  algorithm: undefined, // 自定义 token 覆盖，保持 dark 全量控制
+  // 必须用 darkAlgorithm：只覆盖 token 会漏掉派生色（placeholder、Alert info
+  // 背景、Menu 文本、Popconfirm 等仍是 light 主题 → 白底浅字/深底深字看不清）。
+  algorithm: theme.darkAlgorithm,
   token: {
     colorPrimary: palette.cyan,
     colorSuccess: palette.emerald,

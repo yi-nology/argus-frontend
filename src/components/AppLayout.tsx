@@ -110,9 +110,8 @@ export default function AppLayout() {
             background: 'rgba(11,15,22,0.55)',
             borderRight: '1px solid rgba(148,163,184,0.1)',
             paddingTop: 12,
+            flex: '0 0 200px',
           }}
-          breakpoint="lg"
-          collapsedWidth={0}
         >
           <Menu
             mode="inline"

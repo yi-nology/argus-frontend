@@ -7,6 +7,7 @@ import AppLayout from './components/AppLayout'
 import Login from './pages/Login'
 import AcceptInvite from './pages/AcceptInvite'
 import Dashboard from './pages/Dashboard'
+import Quality from './pages/Quality'
 import Tasks from './pages/Tasks'
 import TaskDetail from './pages/TaskDetail'
 import Approvals from './pages/Approvals'
@@ -50,6 +51,7 @@ function Shell() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="quality" element={<Quality />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="tasks/:taskId" element={<TaskDetail />} />
         <Route path="findings" element={<Findings />} />

@@ -2,6 +2,7 @@ import { Layout, Menu, Tag, Typography, Space, Button, Avatar, Dropdown } from '
 import {
   ControlOutlined,
   DashboardOutlined,
+  BarChartOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
   MergeCellsOutlined,
@@ -21,6 +22,7 @@ const { Header, Sider, Content } = Layout
 
 const NAV = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
+  { key: '/quality', icon: <BarChartOutlined />, label: '质量运营' },
   { key: '/tasks', icon: <RocketOutlined />, label: '审查任务' },
   { key: '/findings', icon: <BugOutlined />, label: '意见治理' },
   { key: '/approvals', icon: <SafetyCertificateOutlined />, label: '修复审批' },

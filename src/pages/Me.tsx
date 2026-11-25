@@ -21,10 +21,10 @@ export default function Me() {
   return (
     <div className="page">
       <Typography.Title level={3} className="page-title">
-        我的权限 <span className="grad-text">/ my_permissions</span>
+        我的权限
       </Typography.Title>
       <Typography.Paragraph className="page-sub">
-        服务端投影 · 前端置灰仅提示，服务端仍 fail-closed 二次判定
+        以下权限由服务端根据角色投影生成；界面展示仅作参考，实际读写判定以服务端为准。
       </Typography.Paragraph>
 
       <Card
@@ -33,7 +33,7 @@ export default function Me() {
           <Space>
             <UserOutlined style={{ color: '#5b8def' }} />
             身份
-            <Tag color="purple">{user?.role || user?.scope || '—'}</Tag>
+            <Tag color="blue">{user?.role || user?.scope || '—'}</Tag>
           </Space>
         }
         extra={<Button onClick={() => void refresh()}>刷新</Button>}

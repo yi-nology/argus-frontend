@@ -1,4 +1,4 @@
-/* Argus 全局样式 —— 石墨深底 + 克制蓝紫强调，数据优先 */
+/* Argus 全局样式 —— 石墨深底 + 单一蓝色强调，数据优先；无渐变/光晕装饰 */
 
 :root {
   --bg: #0b0f16;
@@ -13,8 +13,7 @@
   --text: #e6ebf5;
   --text2: #9aa8bc;
   --text3: #64748b;
-  --grad: linear-gradient(135deg, #5b8def 0%, #8b7cf6 100%);
-  --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 * {
@@ -30,14 +29,13 @@ body,
 
 body {
   color: var(--text);
-  background:
-    radial-gradient(900px 420px at 80% -20%, rgba(91, 141, 239, 0.10), transparent 60%),
-    var(--bg);
+  background: var(--bg);
   font-family:
-    'Space Grotesk',
-    system-ui,
     -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
     'PingFang SC',
+    'Hiragino Sans GB',
     'Noto Sans CJK SC',
     'Microsoft YaHei',
     sans-serif;
@@ -58,62 +56,20 @@ body {
 .glass {
   background: var(--glass);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  backdrop-filter: blur(12px) saturate(120%);
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+  border-radius: 12px;
+  backdrop-filter: blur(10px) saturate(115%);
+  -webkit-backdrop-filter: blur(10px) saturate(115%);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.24);
 }
 
 .glass-hover {
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .glass-hover:hover {
-  transform: translateY(-1px);
   border-color: rgba(91, 141, 239, 0.28);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
-}
-
-/* ---- 描边卡片（保留类名，弱化为普通描边） ---- */
-.gradient-border {
-  position: relative;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1px;
-}
-.gradient-border::before {
-  display: none;
-}
-.gradient-border > .inner {
-  border-radius: 13px;
-  background: rgba(18, 24, 36, 0.92);
-  padding: 18px 20px;
-  height: 100%;
-}
-
-/* ---- 主按钮（实色，不再发光） ---- */
-.glow-btn {
-  background: var(--cyan) !important;
-  border: 1px solid var(--cyan) !important;
-  color: #0b1220 !important;
-  font-weight: 600 !important;
-  box-shadow: none !important;
-  transition: background 0.2s ease;
-}
-.glow-btn:hover {
-  background: #6f9bf2 !important;
-  border-color: #6f9bf2 !important;
-}
-
-/* ---- 渐变文字 ---- */
-.grad-text {
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.30);
 }
 
 /* ---- 状态光点 ---- */
@@ -127,51 +83,29 @@ body {
 }
 .dot.ok {
   background: var(--emerald);
-  color: var(--emerald);
 }
 .dot.err {
   background: var(--rose);
-  color: var(--rose);
 }
 .dot.warn {
   background: var(--amber);
-  color: var(--amber);
 }
 .dot.run {
   background: var(--cyan);
-  color: var(--cyan);
   animation: pulse 1.6s ease-in-out infinite;
 }
 .dot.mute {
   background: var(--text3);
-  color: var(--text3);
-  box-shadow: none;
 }
 
 @keyframes pulse {
   0%,
   100% {
     opacity: 1;
-    transform: scale(1);
   }
   50% {
-    opacity: 0.55;
-    transform: scale(0.85);
+    opacity: 0.5;
   }
-}
-
-/* ---- 顶部线（细描边，无渐变发光） ---- */
-.top-glow {
-  position: relative;
-}
-.top-glow::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 1px;
-  background: var(--border);
 }
 
 /* ---- 页面容器 ---- */
@@ -179,13 +113,13 @@ body {
   padding: 24px 28px 48px;
   max-width: 1280px;
   margin: 0 auto;
-  animation: fadeUp 0.35s ease both;
+  animation: fadeUp 0.3s ease both;
 }
 
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -194,16 +128,16 @@ body {
 }
 
 .page-title {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
   margin: 0 0 4px;
 }
 
 .page-sub {
   color: var(--text2);
   font-size: 13px;
-  margin: 0 0 22px;
+  margin: 0 0 20px;
 }
 
 /* ---- 资格门检查行 ---- */
@@ -212,7 +146,7 @@ body {
   gap: 12px;
   align-items: flex-start;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid transparent;
   transition: background 0.2s ease;
 }
@@ -246,17 +180,17 @@ body {
   white-space: pre-wrap;
   background: rgba(10, 14, 22, 0.70);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 16px;
   max-height: 520px;
   overflow: auto;
 }
 
-/* ---- 报告 Markdown 渲染（v8.5.0：表格/链接/代码块可读） ---- */
+/* ---- 报告 Markdown 渲染 ---- */
 .report-md {
   background: rgba(10, 14, 22, 0.55);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 4px 20px 12px;
   max-height: 720px;
   overflow: auto;
@@ -302,17 +236,20 @@ body {
   padding: 0;
 }
 
-/* ---- Ant Design X 聊天区微调 ---- */
-.x-chat-wrap .ant-bubble {
-  --ant-bubble-content-bg: rgba(91, 141, 239, 0.10);
+/* ---- Ant Design X 问答区：中性配色（无紫/蓝化学气泡） ---- */
+.x-chat-wrap .ant-bubble-content {
+  border-radius: 10px;
 }
 .x-chat-wrap .ant-bubble-start .ant-bubble-content {
-  background: rgba(139, 124, 246, 0.10);
-  border: 1px solid rgba(139, 124, 246, 0.18);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid var(--border);
 }
 .x-chat-wrap .ant-sender {
-  border-radius: 14px;
-  border-color: rgba(91, 141, 239, 0.26);
+  border-radius: 10px;
+  border-color: var(--border);
+}
+.x-chat-wrap .ant-sender:focus-within {
+  border-color: rgba(91, 141, 239, 0.45);
 }
 
 /* 滚动条 */

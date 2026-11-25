@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert, App, Button, Card, Col, Empty, Input, InputNumber, Popconfirm,
-  Row, Segmented, Select, Slider, Space, Spin, Statistic, Switch, Tag, Tooltip, Typography,
+  Alert, App, Button, Card, Col, Empty, InputNumber, Popconfirm,
+  Row, Select, Slider, Space, Spin, Statistic, Switch, Tag, Tooltip, Typography,
 } from 'antd'
 import {
   CommentOutlined, ControlOutlined, ReloadOutlined, SaveOutlined,
@@ -9,16 +9,10 @@ import {
 } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { api, type RepoSettingsValues } from '../api/client'
-import { PLATFORMS } from '../constants/platforms'
+import RepoPicker, { type Coords } from '../components/RepoPicker'
+import { SEVERITY_FLOOR_OPTIONS } from '../constants/vocab'
 
-/** 级别地板选项 → severity_floor 值（''=全报）。 */
-const FLOOR_OPTIONS = [
-  { label: '全部级别', value: '' },
-  { label: 'low 及以上', value: 'low' },
-  { label: 'medium 及以上', value: 'medium' },
-  { label: 'high 及以上', value: 'high' },
-  { label: '仅 critical', value: 'critical' },
-]
+/** 级别地板选项单源见 constants/vocab.SEVERITY_FLOOR_OPTIONS。 */
 
 const REPORT_TEMPLATES = [
   { label: '跟随部署默认', value: '' },
@@ -71,6 +65,7 @@ export default function RepoSettings() {
   const [repo, setRepo] = useState(params.get('repo') || '')
   const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [state, setState] = useState<FormState>(DEFAULTS)
@@ -133,11 +128,12 @@ export default function RepoSettings() {
 
   const load = async (p = platform, o = owner, r = repo) => {
     if (!o || !r) {
-      message.warning('请填写 owner 与 repo')
+      message.warning('请完整选择 owner 与仓库')
       return
     }
     setLoading(true)
     setEffect(null)
+    setLoadError('')
     try {
       const row = await api.getRepoSettings(p, o, r)
       const v: RepoSettingsValues = row?.settings ?? (row?.settings_json ? JSON.parse(row.settings_json) : {})
@@ -154,11 +150,17 @@ export default function RepoSettings() {
       setLoaded(true)
       setDirty(false)
     } catch (e: any) {
-      // 404 = 无覆盖（全新仓库）：给默认值而非报错
-      setState(DEFAULTS)
-      setLoaded(true)
-      setDirty(false)
-      message.info('该仓库暂无自定义设置，当前为全局默认值')
+      if (e?.status === 404) {
+        // 404 = 无覆盖（全新仓库）：给默认值而非报错
+        setState(DEFAULTS)
+        setLoaded(true)
+        setDirty(false)
+        message.info('该仓库暂无自定义设置，当前为全局默认值')
+      } else {
+        // 403/500 等真错误不能伪装成「无配置」——否则用户以为在编辑默认值
+        setLoaded(false)
+        setLoadError(e?.message || '加载设置失败')
+      }
     } finally {
       loadEffect(p, o, r)
       setLoading(false)
@@ -232,27 +234,18 @@ export default function RepoSettings() {
       </Typography.Paragraph>
 
       {/* 仓库选择条 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" className="glass" style={{ marginBottom: 16 }}>
         <Space wrap size={12}>
-          <Select
-            value={platform}
-            style={{ width: 150 }}
-            onChange={(v) => { setPlatform(v); setLoaded(false) }}
-            options={PLATFORMS.map((p) => ({ label: p, value: p }))}
-          />
-          <Input
-            placeholder="owner / 组织"
-            style={{ width: 180 }}
-            value={owner}
-            onChange={(e) => { setOwner(e.target.value); setLoaded(false) }}
-          />
-          <span style={{ color: '#666' }}>/</span>
-          <Input
-            placeholder="仓库名"
-            style={{ width: 200 }}
-            value={repo}
-            onChange={(e) => { setRepo(e.target.value); setLoaded(false) }}
-            onPressEnter={() => load()}
+          <RepoPicker
+            value={{ platform, owner, repo }}
+            onChange={(c: Coords) => {
+              setPlatform(c.platform)
+              setOwner(c.owner)
+              setRepo(c.repo)
+              setLoaded(false)
+              setLoadError('')
+            }}
+            platformWidth={150}
           />
           <Button type="primary" icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>
             加载设置
@@ -306,7 +299,18 @@ export default function RepoSettings() {
         </Card>
       )}
 
-      {!loaded && (
+      {loadError && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          title="加载设置失败"
+          description={`${loadError}（403=令牌无该仓管理范围；这不代表仓库没有配置）`}
+          action={<Button size="small" onClick={() => load()}>重试</Button>}
+        />
+      )}
+
+      {!loaded && !loadError && (
         <Empty description="选择上方仓库加载设置；近期活跃仓库可一键载入" style={{ margin: '48px 0' }} />
       )}
 
@@ -345,7 +349,7 @@ export default function RepoSettings() {
                 <InputNumber
                   min={0} max={1440} value={state.throttle}
                   onChange={(v) => patch({ throttle: v ?? 0 })}
-                  addonAfter="分钟" style={{ width: '100%' }}
+                  suffix="分钟" style={{ width: '100%' }}
                 />
               </Col>
               <Col xs={24} md={8}>
@@ -357,7 +361,7 @@ export default function RepoSettings() {
                   <InputNumber
                     min={0} max={50} value={state.cap}
                     onChange={(v) => patch({ cap: v ?? 0 })}
-                    addonAfter="条 / 报告" style={{ width: '100%' }}
+                    suffix="条 / 报告" style={{ width: '100%' }}
                   />
                 </div>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -370,11 +374,11 @@ export default function RepoSettings() {
                   <InfoCircleOutlined style={{ marginLeft: 6, color: '#888' }} />
                 </Tooltip>
                 <div style={{ marginTop: 8 }}>
-                  <Segmented
-                    block
+                  <Select
                     value={state.floor}
-                    onChange={(v) => patch({ floor: v as string })}
-                    options={FLOOR_OPTIONS}
+                    onChange={(v) => patch({ floor: v })}
+                    options={SEVERITY_FLOOR_OPTIONS}
+                    style={{ width: '100%' }}
                   />
                 </div>
               </Col>
@@ -385,7 +389,7 @@ export default function RepoSettings() {
               type="info"
               showIcon
               icon={<EyeOutlined />}
-              message="效果预览"
+              title="效果预览"
               description={preview}
             />
 
@@ -422,7 +426,7 @@ export default function RepoSettings() {
                       title="节流跳过回帖"
                       value={effect.reply_throttled ?? 0}
                       suffix="次"
-                      valueStyle={{ color: (effect.reply_throttled ?? 0) > 0 ? '#f0b429' : undefined }}
+                      styles={{ content: { color: (effect.reply_throttled ?? 0) > 0 ? '#f0b429' : undefined } }}
                     />
                   </Col>
                   <Col xs={12} md={6}>

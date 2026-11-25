@@ -26,9 +26,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <span className="grad-text" style={{ fontSize: 20, letterSpacing: 4 }}>
-          ARGUS
-        </span>
+        <span style={{ fontSize: 15, letterSpacing: 3, color: '#9aa8bc' }}>Loading…</span>
       </div>
     )
   }

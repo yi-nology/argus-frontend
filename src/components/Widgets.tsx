@@ -2,6 +2,7 @@ import { Typography } from 'antd'
 import type { ReactNode } from 'react'
 import { palette } from '../theme/theme'
 
+/** 指标卡：平铺面板 + 纯色图标底色（无渐变装饰）。 */
 export function StatCard({
   label,
   value,
@@ -16,38 +17,38 @@ export function StatCard({
   suffix?: string
 }) {
   return (
-    <div className="gradient-border glass-hover" style={{ height: '100%' }}>
-      <div className="inner" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              display: 'grid',
-              placeItems: 'center',
-              background: `linear-gradient(135deg, ${accent}33, ${accent}11)`,
-              color: accent,
-              fontSize: 18,
-              border: `1px solid ${accent}44`,
-            }}
-          >
-            {icon}
-          </div>
-          <Typography.Text type="secondary" style={{ fontSize: 12, letterSpacing: 1 }}>
-            {label}
+    <div
+      className="glass glass-hover"
+      style={{ height: '100%', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 8,
+            display: 'grid',
+            placeItems: 'center',
+            background: `${accent}1c`,
+            color: accent,
+            fontSize: 16,
+          }}
+        >
+          {icon}
+        </div>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {label}
+        </Typography.Text>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <span className="mono" style={{ fontSize: 26, fontWeight: 600, color: accent }}>
+          {value}
+        </span>
+        {suffix && (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {suffix}
           </Typography.Text>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span className="mono" style={{ fontSize: 30, fontWeight: 700, color: accent }}>
-            {value}
-          </span>
-          {suffix && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {suffix}
-            </Typography.Text>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )

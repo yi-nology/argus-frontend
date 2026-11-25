@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { VERDICT_LABELS } from '../constants/vocab'
 
 interface RepoStat {
   platform: string
@@ -43,8 +44,8 @@ function pct(used?: number, budget?: number): number {
 }
 
 /**
- * 质量运营（v8.6）：把 /stats/overview（审查质量/回复控制）与
- * /usage/monthly（配额/实销/预留三账本）汇总成一页，供研发/运维按仓巡检。
+ * 质量运营：近 30 天审查态势 + 本月 token 三账本（完成口径 / 逐调用实销 /
+ * 活跃预留）。按仓巡检：意见治理与回复控制配置直达。
  */
 export default function Quality() {
   const { message } = App.useApp()
@@ -69,7 +70,7 @@ export default function Quality() {
   }
 
   useEffect(() => {
-    load()
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -78,51 +79,62 @@ export default function Quality() {
   const usageRows: UsageRow[] = usage?.repos ?? []
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+    <div className="page">
       <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <Typography.Title level={3} style={{ marginTop: 0 }}>
-            <BarChartOutlined /> 质量运营
+          <Typography.Title level={3} className="page-title">
+            质量运营
           </Typography.Title>
-          <Typography.Paragraph type="secondary">
-            近 30 天审查态势 + 本月 token 三账本（done 口径 / 逐调用实销 / 活跃预留）。
-            按仓巡检：意见治理与回复控制配置直达。
+          <Typography.Paragraph className="page-sub">
+            近 30 天审查态势与本月 token 用量（完成口径 / 实销 / 预留）。可按仓跳转意见治理与回复控制配置。
           </Typography.Paragraph>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>刷新</Button>
-          <Button type="primary" ghost icon={<BarChartOutlined />}
-            onClick={() => window.open('/api/console', '_blank')}>
-            服务端质量台
-          </Button>
-        </Space>
+        <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>刷新</Button>
       </Space>
 
       {/* ===== 30 天 KPI ===== */}
       <Row gutter={[16, 16]}>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="审查任务（done）" value={fmtNum(stats?.tasks_done)} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="APPROVE" value={fmtNum(verdicts.approve)} valueStyle={{ color: '#34d399' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="COMMENT" value={fmtNum(verdicts.comment)} valueStyle={{ color: '#f0b429' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="REQUEST_CHANGES" value={fmtNum(verdicts.request_changes)} valueStyle={{ color: '#f07178' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="Token 消耗" value={fmtNum(stats?.tokens_used)} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="误报抑制（历史）" value={fmtNum(stats?.findings_suppressed)} /></Card></Col>
+        <Col xs={12} md={4}>
+          <Card className="glass" size="small"><Statistic title="审查任务（已完成）" value={fmtNum(stats?.tasks_done)} /></Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card className="glass" size="small">
+            <Statistic title={VERDICT_LABELS.approve} value={fmtNum(verdicts.approve)} styles={{ content: { color: '#34d399' } }} />
+          </Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card className="glass" size="small">
+            <Statistic title={VERDICT_LABELS.comment} value={fmtNum(verdicts.comment)} styles={{ content: { color: '#f0b429' } }} />
+          </Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card className="glass" size="small">
+            <Statistic title={VERDICT_LABELS.request_changes} value={fmtNum(verdicts.request_changes)} styles={{ content: { color: '#f07178' } }} />
+          </Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card className="glass" size="small"><Statistic title="Token 消耗" value={fmtNum(stats?.tokens_used)} /></Card>
+        </Col>
+        <Col xs={12} md={4}>
+          <Card className="glass" size="small"><Statistic title="误报抑制（历史）" value={fmtNum(stats?.findings_suppressed)} /></Card>
+        </Col>
       </Row>
 
       {/* ===== 回复控制生效面 ===== */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} md={8}>
-          <Card size="small">
+          <Card className="glass" size="small">
             <Statistic title="节流跳过回帖" value={fmtNum(stats?.reply_throttled)} suffix="次"
-              valueStyle={{ color: stats?.reply_throttled ? '#f0b429' : undefined }} />
+              styles={{ content: { color: stats?.reply_throttled ? '#f0b429' : undefined } }} />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card size="small">
+          <Card className="glass" size="small">
             <Statistic title="低于级别地板静默" value={fmtNum(stats?.silenced_floor)} suffix="条" />
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card size="small">
+          <Card className="glass" size="small">
             <Statistic title="超出数量上限静默" value={fmtNum(stats?.silenced_cap)} suffix="条" />
           </Card>
         </Col>
@@ -130,23 +142,24 @@ export default function Quality() {
 
       {/* ===== 本月 token 三账本 ===== */}
       <Card
+        className="glass"
         size="small"
         style={{ marginTop: 16 }}
         title={<Space><ThunderboltOutlined />本月 Token 用量（{usage?.month || '—'}）</Space>}
-        extra={<Button type="link" onClick={() => nav('/settings/repos')}>按仓预算设置 →</Button>}
+        extra={<Button type="link" onClick={() => nav('/settings/repos')}>按仓预算设置</Button>}
       >
         <Row gutter={[24, 12]}>
           <Col xs={24} md={8}>
-            <Typography.Text type="secondary">配额口径（done 任务，全部仓库合计）</Typography.Text>
+            <Typography.Text type="secondary">完成口径（全部仓库合计）</Typography.Text>
             <Statistic value={fmtNum(usage?.total)} />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {usage?.budget > 0
                 ? <>每仓月度上限 {fmtNum(usage?.budget)}；按仓水位见下表</>
-                : <>未设每仓月度上限（全局预算关闭，可在仓库设置按仓配置）</>}
+                : <>未设每仓月度上限（可在仓库设置中按仓配置）</>}
             </Typography.Text>
           </Col>
           <Col xs={24} md={8}>
-            <Typography.Text type="secondary">逐调用实销（含失败/重试）</Typography.Text>
+            <Typography.Text type="secondary">逐调用实销（含失败与重试）</Typography.Text>
             {usage?.real_budget > 0 ? (
               <>
                 <Progress percent={pct(usage?.real_total, usage?.real_budget)} status={pct(usage?.real_total, usage?.real_budget) >= 100 ? 'exception' : 'normal'} />
@@ -166,38 +179,44 @@ export default function Quality() {
           <Col xs={24} md={8}>
             <Typography.Text type="secondary">活跃预留（执行前承诺）</Typography.Text>
             <Statistic value={fmtNum(usage?.reserved_total)} />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>在途消耗；随任务完成转入实销</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>在途消耗；任务完成后转入实销</Typography.Text>
           </Col>
         </Row>
-        <Table<UsageRow>
-          size="small"
-          style={{ marginTop: 12 }}
-          rowKey={(r) => `${r.platform}:${r.owner}/${r.repo}`}
-          dataSource={usageRows}
-          pagination={{ pageSize: 8, showSizeChanger: false }}
-          columns={[
-            { title: '仓库', render: (_, r) => `${r.platform}/${r.owner}/${r.repo}` },
-            { title: '任务', dataIndex: 'tasks', width: 80 },
-            { title: 'tokens（配额口径）', dataIndex: 'tokens', width: 160, render: (v: number) => fmtNum(v) },
-            {
-              title: '配额水位', width: 180,
-              render: (_, r) => (usage?.budget > 0 ? (
-                <Progress
-                  size="small"
-                  percent={pct(r.tokens, usage.budget)}
-                  status={pct(r.tokens, usage.budget) >= 100 ? 'exception' : 'normal'}
-                />
-              ) : <Typography.Text type="secondary">未设上限</Typography.Text>),
-            },
-          ]}
-        />
+        {usageRows.length === 0 ? (
+          <Empty description="本月暂无 token 用量" style={{ margin: '12px 0' }} />
+        ) : (
+          <Table<UsageRow>
+            size="small"
+            style={{ marginTop: 12 }}
+            loading={loading}
+            rowKey={(r) => `${r.platform}:${r.owner}/${r.repo}`}
+            dataSource={usageRows}
+            pagination={{ pageSize: 8, showSizeChanger: false }}
+            columns={[
+              { title: '仓库', render: (_, r) => `${r.platform}/${r.owner}/${r.repo}` },
+              { title: '任务', dataIndex: 'tasks', width: 80 },
+              { title: 'tokens（完成口径）', dataIndex: 'tokens', width: 160, render: (v: number) => fmtNum(v) },
+              {
+                title: '配额水位', width: 180,
+                render: (_, r) => (usage?.budget > 0 ? (
+                  <Progress
+                    size="small"
+                    percent={pct(r.tokens, usage.budget)}
+                    status={pct(r.tokens, usage.budget) >= 100 ? 'exception' : 'normal'}
+                  />
+                ) : <Typography.Text type="secondary">未设上限</Typography.Text>),
+              },
+            ]}
+          />
+        )}
       </Card>
 
       {/* ===== 按仓质量巡检 ===== */}
-      <Card size="small" style={{ marginTop: 16 }} title="按仓质量巡检（近 30 天）">
+      <Card className="glass" size="small" style={{ marginTop: 16 }} title="按仓质量巡检（近 30 天）">
         {repos.length === 0 ? <Empty description="近 30 天暂无已完成审查任务" /> : (
           <Table<RepoStat>
             size="small"
+            loading={loading}
             rowKey={(r) => `${r.platform}:${r.owner}/${r.repo}`}
             dataSource={repos}
             pagination={{ pageSize: 10, showSizeChanger: false }}
@@ -205,12 +224,12 @@ export default function Quality() {
               { title: '仓库', render: (_, r) => `${r.platform}/${r.owner}/${r.repo}` },
               { title: '任务', dataIndex: 'tasks_done', width: 70 },
               {
-                title: '裁决分布', width: 220,
+                title: '裁决分布', width: 240,
                 render: (_, r) => (
                   <Space size={4} wrap>
-                    <Tag color="success">A {r.verdict_approve}</Tag>
-                    <Tag color="warning">C {r.verdict_comment}</Tag>
-                    <Tag color="error">RC {r.verdict_request_changes}</Tag>
+                    <Tag color="success">{VERDICT_LABELS.approve} {r.verdict_approve}</Tag>
+                    <Tag color="warning">{VERDICT_LABELS.comment} {r.verdict_comment}</Tag>
+                    <Tag color="error">{VERDICT_LABELS.request_changes} {r.verdict_request_changes}</Tag>
                   </Space>
                 ),
               },
@@ -221,8 +240,8 @@ export default function Quality() {
                 render: (_, r) => (
                   <Space size={4} wrap>
                     {r.reply_throttled > 0 && <Tag color="orange">节流 {r.reply_throttled}</Tag>}
-                    {r.silenced_floor > 0 && <Tag>floor {r.silenced_floor}</Tag>}
-                    {r.silenced_cap > 0 && <Tag>cap {r.silenced_cap}</Tag>}
+                    {r.silenced_floor > 0 && <Tag>级别静默 {r.silenced_floor}</Tag>}
+                    {r.silenced_cap > 0 && <Tag>数量静默 {r.silenced_cap}</Tag>}
                     {r.reply_throttled + r.silenced_floor + r.silenced_cap === 0 && <Typography.Text type="secondary">—</Typography.Text>}
                   </Space>
                 ),
@@ -246,6 +265,11 @@ export default function Quality() {
           />
         )}
       </Card>
+
+      <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
+        <BarChartOutlined style={{ marginRight: 6 }} />
+        服务端聚合报表可在部署环境通过 /console 页面查看（需管理员令牌）。
+      </Typography.Text>
     </div>
   )
 }

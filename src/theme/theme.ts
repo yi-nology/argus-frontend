@@ -1,6 +1,6 @@
 /**
  * Argus 暗色主题（antd v6 token + 自定义 CSS 变量）。
- * 基调：石墨深底 + 克制的蓝紫强调；渐变/光晕只作极轻点缀，数据可读性优先。
+ * 基调：石墨深底 + 单一蓝色强调；无渐变/光晕装饰，数据可读性优先。
  */
 import { theme } from 'antd'
 import type { ThemeConfig } from 'antd'
@@ -18,8 +18,6 @@ export const palette = {
   text: '#e6ebf5',
   text2: '#9aa8bc',
   text3: '#64748b',
-  gradient: 'linear-gradient(135deg, #5b8def 0%, #8b7cf6 100%)',
-  gradientSoft: 'linear-gradient(135deg, rgba(91,141,239,.14), rgba(139,124,246,.14))',
 }
 
 export const antdTheme: ThemeConfig = {
@@ -41,9 +39,9 @@ export const antdTheme: ThemeConfig = {
     colorText: palette.text,
     colorTextSecondary: palette.text2,
     colorTextTertiary: palette.text3,
-    borderRadius: 10,
+    borderRadius: 8,
     fontFamily:
-      "'Space Grotesk', system-ui, -apple-system, 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
     // 暗色下阴影过重会脏，统一压扁
     boxShadow: '0 6px 24px rgba(0,0,0,0.28)',
     boxShadowSecondary: '0 3px 12px rgba(0,0,0,0.22)',
@@ -58,9 +56,9 @@ export const antdTheme: ThemeConfig = {
       darkItemBg: 'transparent',
       darkSubMenuItemBg: 'transparent',
       darkItemSelectedBg: 'rgba(91,141,239,0.14)',
-      darkItemSelectedColor: '#a9c1ff',
+      darkItemSelectedColor: '#c7d6ff',
       darkItemColor: palette.text2,
-      itemBorderRadius: 8,
+      itemBorderRadius: 6,
       itemMarginInline: 8,
     },
     Card: {
@@ -81,8 +79,8 @@ export const antdTheme: ThemeConfig = {
       defaultColor: palette.text,
     },
     Tag: {
-      defaultBg: 'rgba(91,141,239,0.10)',
-      defaultColor: '#a9c1ff',
+      defaultBg: 'rgba(148,163,184,0.10)',
+      defaultColor: palette.text2,
     },
     Input: {
       activeShadow: '0 0 0 2px rgba(91,141,239,0.18)',
@@ -99,5 +97,3 @@ export const antdTheme: ThemeConfig = {
     },
   },
 }
-
-export const monoFont = "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace"

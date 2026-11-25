@@ -28,41 +28,39 @@ export default function AcceptInvite() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
-      <div className="gradient-border" style={{ width: '100%', maxWidth: 440 }}>
-        <div className="inner">
-          <Typography.Title level={4}>接受邀请</Typography.Title>
-          <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-            邀请永不授予 admin 角色（平台管理与业务裁定分离）。
-          </Typography.Paragraph>
-          <Form
-            layout="vertical"
-            onFinish={onFinish}
-            initialValues={{ token: sp.get('token') || '' }}
-            size="large"
+      <div className="glass" style={{ width: '100%', maxWidth: 420, padding: '24px 24px 12px' }}>
+        <Typography.Title level={4} style={{ marginTop: 0 }}>接受邀请</Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+          设置用户名与密码完成注册；邀请链接有效期有限，过期需联系管理员重新生成。
+        </Typography.Paragraph>
+        <Form
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{ token: sp.get('token') || '' }}
+          size="large"
+        >
+          <Form.Item name="token" rules={[{ required: true, message: '邀请 token 必填' }]}>
+            <Input placeholder="邀请 token" className="mono" />
+          </Form.Item>
+          <Form.Item name="username" rules={[{ required: true, message: '用户名必填' }]}>
+            <Input placeholder="用户名" />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: '密码必填' },
+              { min: 8, message: '至少 8 位' },
+            ]}
           >
-            <Form.Item name="token" rules={[{ required: true, message: '邀请 token 必填' }]}>
-              <Input placeholder="邀请 token" className="mono" />
-            </Form.Item>
-            <Form.Item name="username" rules={[{ required: true, message: '用户名必填' }]}>
-              <Input placeholder="用户名" />
-            </Form.Item>
-            <Form.Item
-              name="password"
-              rules={[
-                { required: true, message: '密码必填' },
-                { min: 8, message: '至少 8 位' },
-              ]}
-            >
-              <Input.Password placeholder="密码（≥8 位）" />
-            </Form.Item>
-            <Button block htmlType="submit" className="glow-btn" loading={busy}>
-              创建账号
-            </Button>
-            <Button type="link" block onClick={() => nav('/login')}>
-              返回登录
-            </Button>
-          </Form>
-        </div>
+            <Input.Password placeholder="密码（≥8 位）" />
+          </Form.Item>
+          <Button block type="primary" htmlType="submit" loading={busy}>
+            创建账号
+          </Button>
+        </Form>
+        <Button type="link" block onClick={() => nav('/login')}>
+          返回登录
+        </Button>
       </div>
     </div>
   )

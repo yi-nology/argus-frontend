@@ -1,21 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  App, Button, Card, Col, Empty, Input, Popconfirm, Row, Segmented, Select, Space,
+  App, AutoComplete, Button, Card, Col, Empty, Popconfirm, Row, Segmented, Select, Space,
   Statistic, Table, Tag, Tooltip, Typography,
 } from 'antd'
 import {
   BugOutlined, DeleteOutlined, ReloadOutlined, SearchOutlined, UndoOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { useSearchParams } from 'react-router-dom'
-import { api, type FindingRow } from '../api/client'
-import { PLATFORMS } from '../constants/platforms'
+import { api, type FindingRow, type TaskRow } from '../api/client'
+import RepoPicker, { useConsoleOptions, type Coords } from '../components/RepoPicker'
+import RecentTaskPicker from '../components/RecentTaskPicker'
+import { SEVERITY_COLOR, SEVERITY_OPTIONS, fmtAgo } from '../constants/vocab'
 import { useAuth } from '../auth/AuthContext'
-
-/** 级别配色（critical 最高；与报告渲染的严重度词表一致）。 */
-const SEVERITY_COLOR: Record<string, string> = {
-  critical: 'magenta', high: 'red', medium: 'orange', low: 'blue',
-}
 
 /** 分布展示的固定顺序（未知级别归 other）。 */
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'other']
@@ -26,21 +22,8 @@ const STATUS_OPTIONS = [
   { label: '已抑制', value: 'suppressed' },
 ]
 
-const SEVERITY_OPTIONS = [
-  { label: '全部级别', value: '' },
-  { label: 'critical', value: 'critical' },
-  { label: 'high', value: 'high' },
-  { label: 'medium', value: 'medium' },
-  { label: 'low', value: 'low' },
-]
-
-function fmtTime(unix?: number): string {
-  if (!unix) return '—'
-  return dayjs.unix(unix).format('MM-DD HH:mm')
-}
-
 /**
- * 意见治理台（v8.5.0）：跨 PR 浏览 finding_prints，人工抑制误报 / 恢复。
+ * 意见治理台：跨 PR 浏览 finding_prints，人工抑制误报 / 恢复。
  * 抑制是信任边界写操作（后端 admin 档 + 仓库维度判定）；清单 read 档即可。
  */
 export default function Findings() {
@@ -48,9 +31,12 @@ export default function Findings() {
   const { user } = useAuth()
   const canWrite = user?.scope === 'admin' || user?.role === 'admin'
   const [params] = useSearchParams()
-  const [platform, setPlatform] = useState(params.get('platform') || 'gitlab')
-  const [owner, setOwner] = useState(params.get('owner') || '')
-  const [repo, setRepo] = useState(params.get('repo') || '')
+  const opts = useConsoleOptions()
+  const [coords, setCoords] = useState<Coords>({
+    platform: params.get('platform') || opts?.platforms?.[0] || '',
+    owner: params.get('owner') || '',
+    repo: params.get('repo') || '',
+  })
   const [status, setStatus] = useState('')
   const [sev, setSev] = useState('')
   const [kw, setKw] = useState('')
@@ -61,15 +47,15 @@ export default function Findings() {
   const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const load = async (p = platform, o = owner, r = repo, st = status) => {
-    if (!o || !r) {
-      message.warning('请填写 owner 与 repo')
+  const load = async (c: Coords = coords, st = status) => {
+    if (!c.platform || !c.owner || !c.repo) {
+      message.warning('请完整选择平台、owner 与仓库')
       return
     }
     setLoading(true)
     try {
       const res = await api.listFindings({
-        platform: p, owner: o, repo: r,
+        platform: c.platform, owner: c.owner, repo: c.repo,
         status: st || undefined,
         limit: 200,
       })
@@ -90,15 +76,24 @@ export default function Findings() {
   useEffect(() => {
     if (autoLoaded.current) return
     autoLoaded.current = true
-    if (owner && repo) load(platform, owner, repo, '')
+    const p = params.get('platform')
+    const o = params.get('owner')
+    const r = params.get('repo')
+    if (p && o && r) void load({ platform: p, owner: o, repo: r }, '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 切换状态过滤：已加载过仓库则立即重查（未加载时只更新选择）
   useEffect(() => {
-    if (loaded) load(platform, owner, repo, status)
+    if (loaded) void load(coords, status)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status])
+
+  const pickTask = (t: TaskRow) => {
+    const c: Coords = { platform: t.platform || '', owner: t.owner || '', repo: t.repo || '' }
+    setCoords(c)
+    void load(c, status)
+  }
 
   const suppress = async (row: FindingRow) => {
     try {
@@ -136,45 +131,37 @@ export default function Findings() {
     return true
   })
 
+  /** 搜索建议：高频噪声文件（已由服务端按出现次数排序）。 */
+  const kwOptions = topFiles.map((f) => ({ value: f.file }))
+
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-      <Typography.Title level={3} style={{ marginTop: 0 }}>
-        <BugOutlined /> 意见治理
+    <div className="page">
+      <Typography.Title level={3} className="page-title">
+        <BugOutlined style={{ marginRight: 8 }} />
+        意见治理
       </Typography.Title>
-      <Typography.Paragraph type="secondary">
-        跨 PR 浏览已上报意见的指纹账本：抑制误报后，后续轮次在合并/报告阶段自动剔除；
-        恢复后下一轮重新可见。抑制与恢复都需要 <strong>admin 档 token</strong>。
+      <Typography.Paragraph className="page-sub">
+        跨 PR 浏览已上报意见的指纹账本：抑制误报后，后续轮次自动从报告与评论中剔除；恢复后下一轮重新可见。
       </Typography.Paragraph>
 
       {/* 仓库选择条 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
-        <Space wrap size={12}>
-          <Select
-            value={platform}
-            style={{ width: 150 }}
-            onChange={(v) => { setPlatform(v); setLoaded(false) }}
-            options={PLATFORMS.map((p) => ({ label: p, value: p }))}
-          />
-          <Input
-            placeholder="owner / 组织"
-            style={{ width: 180 }}
-            value={owner}
-            onChange={(e) => { setOwner(e.target.value); setLoaded(false) }}
-          />
-          <span style={{ color: '#666' }}>/</span>
-          <Input
-            placeholder="仓库名"
-            style={{ width: 200 }}
-            value={repo}
-            onChange={(e) => { setRepo(e.target.value); setLoaded(false) }}
-            onPressEnter={() => load()}
-          />
-          <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={() => load()}>
-            加载意见
-          </Button>
-          {loaded && (
-            <Button icon={<ReloadOutlined />} onClick={() => load()}>刷新</Button>
-          )}
+      <Card className="glass" style={{ marginBottom: 16 }}>
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+          <RecentTaskPicker onPick={pickTask} />
+          <Space wrap size={10}>
+            <RepoPicker value={coords} onChange={setCoords} />
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              loading={loading}
+              onClick={() => load()}
+            >
+              加载意见
+            </Button>
+            {loaded && (
+              <Button icon={<ReloadOutlined />} onClick={() => load()}>刷新</Button>
+            )}
+          </Space>
         </Space>
       </Card>
 
@@ -187,24 +174,24 @@ export default function Findings() {
           {/* 计数卡 */}
           <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={8}>
-              <Card size="small"><Statistic title="指纹总数" value={counts?.total ?? 0} /></Card>
+              <Card className="glass" size="small"><Statistic title="指纹总数" value={counts?.total ?? 0} /></Card>
             </Col>
             <Col xs={8}>
-              <Card size="small">
+              <Card className="glass" size="small">
                 <Statistic title="未抑制" value={counts?.open ?? 0}
-                  valueStyle={{ color: counts?.open ? '#f0b429' : undefined }} />
+                  styles={{ content: { color: counts?.open ? '#f0b429' : undefined } }} />
               </Card>
             </Col>
             <Col xs={8}>
-              <Card size="small"><Statistic title="已抑制" value={counts?.suppressed ?? 0} /></Card>
+              <Card className="glass" size="small"><Statistic title="已抑制" value={counts?.suppressed ?? 0} /></Card>
             </Col>
           </Row>
 
-          {/* 分布与噪声文件（v8.5.2：为抑制决策提供依据） */}
+          {/* 分布与噪声文件 */}
           {(Object.keys(sevCounts).length > 0 || topFiles.length > 0) && (
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={24} md={10}>
-                <Card size="small" title="严重度分布">
+                <Card className="glass" size="small" title="严重度分布">
                   <Space wrap>
                     {SEVERITY_ORDER.filter((k) => sevCounts[k]).map((k) => (
                       <Tag key={k} color={SEVERITY_COLOR[k] || 'default'}>
@@ -216,6 +203,7 @@ export default function Findings() {
               </Col>
               <Col xs={24} md={14}>
                 <Card
+                  className="glass"
                   size="small"
                   title="高频噪声文件"
                   extra={<Typography.Text type="secondary" style={{ fontSize: 12 }}>点击文件名筛选</Typography.Text>}
@@ -242,6 +230,7 @@ export default function Findings() {
           )}
 
           <Card
+            className="glass"
             size="small"
             title="意见指纹清单"
             extra={(
@@ -253,18 +242,22 @@ export default function Findings() {
                 />
                 <Select
                   size="small"
-                  style={{ width: 130 }}
+                  style={{ width: 150 }}
                   value={sev}
                   onChange={setSev}
                   options={SEVERITY_OPTIONS}
                 />
-                <Input
+                <AutoComplete
                   size="small"
                   allowClear
-                  placeholder="搜索文件 / 意见 / fp"
-                  style={{ width: 200 }}
+                  placeholder="搜索文件 / 意见 / 指纹"
+                  style={{ width: 220 }}
                   value={kw}
-                  onChange={(e) => setKw(e.target.value)}
+                  options={kwOptions}
+                  filterOption={(input, opt) =>
+                    String(opt?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  onChange={(v: string) => setKw(v)}
                 />
               </Space>
             )}
@@ -322,12 +315,12 @@ export default function Findings() {
                 {
                   title: '出现', width: 96,
                   render: (_, r) => (
-                    <Tooltip title={`历史被 R3.5 反思剔除 ${r.regret_count ?? 0} 次`}>
+                    <Tooltip title={`历史被反思环节剔除 ${r.regret_count ?? 0} 次`}>
                       <span>{r.times_seen ?? 0} 次</span>
                     </Tooltip>
                   ),
                 },
-                { title: '最近出现', width: 120, render: (_, r) => fmtTime(r.last_seen_at) },
+                { title: '最近出现', width: 110, render: (_, r) => fmtAgo(r.last_seen_at) },
                 {
                   title: '状态', width: 100,
                   render: (_, r) => (

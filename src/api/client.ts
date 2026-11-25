@@ -142,6 +142,16 @@ export interface FixTicket {
   decided_at?: number
 }
 
+/** 控制台选项聚合面（GET /console/options，v8.7.0）：下拉单源数据。 */
+export interface ConsoleOptions {
+  platforms: string[]
+  /** IDL TaskKind 数值码（CreateTask wire 面直接可用）+ canonical 词表名。 */
+  kinds: { value: number; name: string }[]
+  statuses: string[]
+  /** tenant_repos 登记面（服务端已按租户 + token 仓库约束行过滤）。 */
+  repos: { platform: string; owner: string; repo: string }[]
+}
+
 export function getToken(): string {
   return localStorage.getItem(TOKEN_KEY) || ''
 }
@@ -246,6 +256,8 @@ export const api = {
   statsOverview: (query?: { days?: number; platform?: string; owner?: string; repo?: string }) =>
     request<any>('/stats/overview', { query: query as any }),
   usageMonthly: () => request<any>('/usage/monthly'),
+  /** 控制台下拉选项单源（platforms/kinds/statuses/repos；v8.7.0）。 */
+  consoleOptions: () => request<ConsoleOptions>('/console/options'),
 
   listFixApprovals: (query: { platform: string; owner: string; repo: string; number: string }) =>
     request<{ tickets: FixTicket[]; pending_count?: number; head_sha?: string }>('/fix-approvals', {

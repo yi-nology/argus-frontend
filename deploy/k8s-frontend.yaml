@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/yi-nology/argus-frontend:v8.5.1
+          image: ghcr.io/yi-nology/argus-frontend:v8.6.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

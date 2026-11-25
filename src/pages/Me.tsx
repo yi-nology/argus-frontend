@@ -31,7 +31,7 @@ export default function Me() {
         className="glass"
         title={
           <Space>
-            <UserOutlined style={{ color: '#22d3ee' }} />
+            <UserOutlined style={{ color: '#5b8def' }} />
             身份
             <Tag color="purple">{user?.role || user?.scope || '—'}</Tag>
           </Space>
@@ -65,7 +65,7 @@ export default function Me() {
                   style={{
                     borderRadius: 12,
                     padding: 14,
-                    border: `1px solid ${ok ? 'rgba(52,211,153,0.35)' : 'rgba(88,148,255,0.12)'}`,
+                    border: `1px solid ${ok ? 'rgba(52,211,153,0.35)' : 'rgba(148,163,184,0.12)'}`,
                     background: ok ? 'rgba(52,211,153,0.08)' : 'rgba(18,28,48,0.5)',
                   }}
                 >

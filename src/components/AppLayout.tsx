@@ -53,9 +53,9 @@ export default function AppLayout() {
           alignItems: 'center',
           gap: 16,
           padding: '0 24px',
-          background: 'rgba(10,16,30,0.8)',
+          background: 'rgba(11,15,22,0.82)',
           backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(88,148,255,0.12)',
+          borderBottom: '1px solid rgba(148,163,184,0.12)',
           position: 'sticky',
           top: 0,
           zIndex: 20,
@@ -67,12 +67,12 @@ export default function AppLayout() {
         <Typography.Text strong style={{ fontSize: 18, letterSpacing: 1 }}>
           <span className="grad-text">ARGUS</span>
         </Typography.Text>
-        <Tag color="cyan" style={{ marginLeft: 4 }}>
+        <Tag color="blue" style={{ marginLeft: 4 }}>
           审查工作台
         </Tag>
         <div style={{ flex: 1 }} />
         <Space>
-          <Tag color="purple">{user?.role || user?.scope || '—'}</Tag>
+          <Tag color="geekblue">{user?.role || user?.scope || '—'}</Tag>
           <Typography.Text type="secondary">{user?.username}</Typography.Text>
           <Dropdown
             menu={{
@@ -91,7 +91,7 @@ export default function AppLayout() {
           >
             <Avatar
               style={{
-                background: 'linear-gradient(135deg,#22d3ee,#8b5cf6)',
+                background: 'linear-gradient(135deg,#5b8def,#8b7cf6)',
                 cursor: 'pointer',
                 color: '#041018',
                 fontWeight: 700,
@@ -107,8 +107,8 @@ export default function AppLayout() {
         <Sider
           width={200}
           style={{
-            background: 'rgba(10,16,30,0.55)',
-            borderRight: '1px solid rgba(88,148,255,0.1)',
+            background: 'rgba(11,15,22,0.55)',
+            borderRight: '1px solid rgba(148,163,184,0.1)',
             paddingTop: 12,
           }}
           breakpoint="lg"

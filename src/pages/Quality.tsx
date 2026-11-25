@@ -102,8 +102,8 @@ export default function Quality() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={4}><Card size="small"><Statistic title="审查任务（done）" value={fmtNum(stats?.tasks_done)} /></Card></Col>
         <Col xs={12} md={4}><Card size="small"><Statistic title="APPROVE" value={fmtNum(verdicts.approve)} valueStyle={{ color: '#34d399' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="COMMENT" value={fmtNum(verdicts.comment)} valueStyle={{ color: '#fbbf24' }} /></Card></Col>
-        <Col xs={12} md={4}><Card size="small"><Statistic title="REQUEST_CHANGES" value={fmtNum(verdicts.request_changes)} valueStyle={{ color: '#fb7185' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="COMMENT" value={fmtNum(verdicts.comment)} valueStyle={{ color: '#f0b429' }} /></Card></Col>
+        <Col xs={12} md={4}><Card size="small"><Statistic title="REQUEST_CHANGES" value={fmtNum(verdicts.request_changes)} valueStyle={{ color: '#f07178' }} /></Card></Col>
         <Col xs={12} md={4}><Card size="small"><Statistic title="Token 消耗" value={fmtNum(stats?.tokens_used)} /></Card></Col>
         <Col xs={12} md={4}><Card size="small"><Statistic title="误报抑制（历史）" value={fmtNum(stats?.findings_suppressed)} /></Card></Col>
       </Row>
@@ -113,7 +113,7 @@ export default function Quality() {
         <Col xs={24} md={8}>
           <Card size="small">
             <Statistic title="节流跳过回帖" value={fmtNum(stats?.reply_throttled)} suffix="次"
-              valueStyle={{ color: stats?.reply_throttled ? '#fbbf24' : undefined }} />
+              valueStyle={{ color: stats?.reply_throttled ? '#f0b429' : undefined }} />
           </Card>
         </Col>
         <Col xs={24} md={8}>

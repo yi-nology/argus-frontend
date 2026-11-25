@@ -29,7 +29,7 @@ export default function Login() {
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <ThunderboltOutlined style={{ fontSize: 44, color: '#22d3ee' }} />
+          <ThunderboltOutlined style={{ fontSize: 44, color: '#5b8def' }} />
           <Typography.Title level={2} style={{ marginTop: 8, marginBottom: 0 }}>
             <span className="grad-text">ARGUS</span>
           </Typography.Title>

@@ -111,7 +111,7 @@ export default function Assistant() {
         {msgs.length === 0 ? (
           <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
             <div style={{ textAlign: 'center', maxWidth: 520 }}>
-              <ThunderboltOutlined style={{ fontSize: 40, color: '#22d3ee' }} />
+              <ThunderboltOutlined style={{ fontSize: 40, color: '#5b8def' }} />
               <Typography.Title level={4} style={{ marginTop: 8 }}>
                 <span className="grad-text">Argus 审查助手</span>
               </Typography.Title>
@@ -146,14 +146,14 @@ export default function Assistant() {
                 ai: {
                   placement: 'start',
                   avatar: (
-                    <Avatar size={32} style={{ background: '#22d3ee' }} icon={<RobotOutlined />} />
+                    <Avatar size={32} style={{ background: '#5b8def' }} icon={<RobotOutlined />} />
                   ),
                   variant: 'outlined',
                 },
                 user: {
                   placement: 'end',
                   avatar: (
-                    <Avatar size={32} style={{ background: '#8b5cf6' }} icon={<UserOutlined />} />
+                    <Avatar size={32} style={{ background: '#8b7cf6' }} icon={<UserOutlined />} />
                   ),
                   variant: 'filled',
                 },
@@ -162,7 +162,7 @@ export default function Assistant() {
             />
             {loading && (
               <Space style={{ padding: 12 }}>
-                <Avatar size="small" style={{ background: '#22d3ee' }} icon={<RobotOutlined />} />
+                <Avatar size="small" style={{ background: '#5b8def' }} icon={<RobotOutlined />} />
                 <Typography.Text type="secondary">思考中…</Typography.Text>
               </Space>
             )}

@@ -340,7 +340,7 @@ export default function RepoSettings() {
                       title="节流跳过回帖"
                       value={effect.reply_throttled ?? 0}
                       suffix="次"
-                      valueStyle={{ color: (effect.reply_throttled ?? 0) > 0 ? '#fbbf24' : undefined }}
+                      valueStyle={{ color: (effect.reply_throttled ?? 0) > 0 ? '#f0b429' : undefined }}
                     />
                   </Col>
                   <Col xs={12} md={6}>

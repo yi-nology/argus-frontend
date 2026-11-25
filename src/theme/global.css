@@ -1,19 +1,19 @@
-/* Argus 全局炫酷样式 —— 深空底 + 玻璃拟态 + 渐变强调 */
+/* Argus 全局样式 —— 石墨深底 + 克制蓝紫强调，数据优先 */
 
 :root {
-  --bg: #070b14;
-  --bg-2: #0d1424;
-  --glass: rgba(18, 28, 48, 0.72);
-  --border: rgba(88, 148, 255, 0.16);
-  --cyan: #22d3ee;
-  --violet: #8b5cf6;
+  --bg: #0b0f16;
+  --bg-2: #121826;
+  --glass: rgba(18, 24, 36, 0.78);
+  --border: rgba(148, 163, 184, 0.14);
+  --cyan: #5b8def;
+  --violet: #8b7cf6;
   --emerald: #34d399;
-  --amber: #fbbf24;
-  --rose: #fb7185;
-  --text: #e8eefc;
-  --text2: #93a4c3;
-  --text3: #5c6f92;
-  --grad: linear-gradient(135deg, #22d3ee 0%, #8b5cf6 55%, #d946ef 100%);
+  --amber: #f0b429;
+  --rose: #f07178;
+  --text: #e6ebf5;
+  --text2: #9aa8bc;
+  --text3: #64748b;
+  --grad: linear-gradient(135deg, #5b8def 0%, #8b7cf6 100%);
   --mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
 }
 
@@ -31,8 +31,7 @@ body,
 body {
   color: var(--text);
   background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(139, 92, 246, 0.18), transparent 55%),
-    radial-gradient(900px 500px at -10% 100%, rgba(34, 211, 238, 0.12), transparent 50%),
+    radial-gradient(900px 420px at 80% -20%, rgba(91, 141, 239, 0.10), transparent 60%),
     var(--bg);
   font-family:
     'Space Grotesk',
@@ -43,22 +42,6 @@ body {
     'Microsoft YaHei',
     sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-/* 星点背景层 */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.35;
-  background-image:
-    radial-gradient(1px 1px at 12% 22%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 38% 68%, rgba(255, 255, 255, 0.35), transparent),
-    radial-gradient(1.5px 1.5px at 72% 18%, rgba(34, 211, 238, 0.5), transparent),
-    radial-gradient(1px 1px at 88% 74%, rgba(139, 92, 246, 0.5), transparent);
-  background-size: 100% 100%;
-  z-index: 0;
 }
 
 #root {
@@ -75,73 +58,54 @@ body::before {
 .glass {
   background: var(--glass);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  border-radius: 14px;
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
 }
 
 .glass-hover {
   transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 .glass-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgba(34, 211, 238, 0.35);
-  box-shadow: 0 16px 48px rgba(34, 211, 238, 0.12);
+  transform: translateY(-1px);
+  border-color: rgba(91, 141, 239, 0.28);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
 }
 
-/* ---- 渐变描边卡片 ---- */
+/* ---- 描边卡片（保留类名，弱化为普通描边） ---- */
 .gradient-border {
   position: relative;
   background: var(--glass);
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   padding: 1px;
 }
 .gradient-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  padding: 1px;
-  background: var(--grad);
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.7;
-  transition: opacity 0.25s ease;
-}
-.gradient-border:hover::before {
-  opacity: 1;
+  display: none;
 }
 .gradient-border > .inner {
-  border-radius: 15px;
-  background: rgba(13, 20, 36, 0.92);
+  border-radius: 13px;
+  background: rgba(18, 24, 36, 0.92);
   padding: 18px 20px;
   height: 100%;
 }
 
-/* ---- 发光主按钮 ---- */
+/* ---- 主按钮（实色，不再发光） ---- */
 .glow-btn {
-  background: var(--grad) !important;
-  border: none !important;
-  color: #041018 !important;
-  font-weight: 700 !important;
-  box-shadow: 0 0 28px rgba(34, 211, 238, 0.4) !important;
-  transition:
-    box-shadow 0.25s ease,
-    transform 0.2s ease;
+  background: var(--cyan) !important;
+  border: 1px solid var(--cyan) !important;
+  color: #0b1220 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  transition: background 0.2s ease;
 }
 .glow-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.55) !important;
+  background: #6f9bf2 !important;
+  border-color: #6f9bf2 !important;
 }
 
 /* ---- 渐变文字 ---- */
@@ -155,12 +119,11 @@ body::before {
 /* ---- 状态光点 ---- */
 .dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: middle;
-  box-shadow: 0 0 10px currentColor;
 }
 .dot.ok {
   background: var(--emerald);
@@ -197,7 +160,7 @@ body::before {
   }
 }
 
-/* ---- 顶部渐变线 ---- */
+/* ---- 顶部线（细描边，无渐变发光） ---- */
 .top-glow {
   position: relative;
 }
@@ -208,8 +171,7 @@ body::before {
   right: 0;
   top: 0;
   height: 1px;
-  background: var(--grad);
-  opacity: 0.8;
+  background: var(--border);
 }
 
 /* ---- 页面容器 ---- */
@@ -282,7 +244,7 @@ body::before {
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
-  background: rgba(5, 10, 20, 0.75);
+  background: rgba(10, 14, 22, 0.70);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
@@ -292,7 +254,7 @@ body::before {
 
 /* ---- 报告 Markdown 渲染（v8.5.0：表格/链接/代码块可读） ---- */
 .report-md {
-  background: rgba(5, 10, 20, 0.55);
+  background: rgba(10, 14, 22, 0.55);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 4px 20px 12px;
@@ -314,7 +276,7 @@ body::before {
   padding: 4px 10px;
 }
 .report-md th {
-  background: rgba(34, 211, 238, 0.08);
+  background: rgba(91, 141, 239, 0.08);
 }
 .report-md blockquote {
   border-left: 3px solid var(--border);
@@ -325,7 +287,7 @@ body::before {
 .report-md code {
   font-family: var(--mono);
   font-size: 12px;
-  background: rgba(34, 211, 238, 0.08);
+  background: rgba(91, 141, 239, 0.08);
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -342,16 +304,15 @@ body::before {
 
 /* ---- Ant Design X 聊天区微调 ---- */
 .x-chat-wrap .ant-bubble {
-  --ant-bubble-content-bg: rgba(34, 211, 238, 0.1);
+  --ant-bubble-content-bg: rgba(91, 141, 239, 0.10);
 }
 .x-chat-wrap .ant-bubble-start .ant-bubble-content {
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.22);
+  background: rgba(139, 124, 246, 0.10);
+  border: 1px solid rgba(139, 124, 246, 0.18);
 }
 .x-chat-wrap .ant-sender {
   border-radius: 14px;
-  border-color: rgba(34, 211, 238, 0.3);
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.12);
+  border-color: rgba(91, 141, 239, 0.26);
 }
 
 /* 滚动条 */
@@ -360,7 +321,7 @@ body::before {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(88, 148, 255, 0.25);
+  background: rgba(148, 163, 184, 0.20);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-track {

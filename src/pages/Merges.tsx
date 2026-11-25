@@ -129,7 +129,7 @@ export default function Merges() {
               <Statistic
                 title="blocking"
                 value={elig.blocking_findings}
-                valueStyle={{ color: elig.blocking_findings ? '#fb7185' : '#34d399' }}
+                valueStyle={{ color: elig.blocking_findings ? '#f07178' : '#34d399' }}
               />
             </Col>
             <Col span={20}>

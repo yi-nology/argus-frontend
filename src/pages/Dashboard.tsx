@@ -77,7 +77,7 @@ export default function Dashboard() {
               label="COMMENT"
               value={verdicts.comment ?? '—'}
               icon={<CommentOutlined />}
-              accent="#fbbf24"
+              accent="#f0b429"
             />
           </Col>
           <Col xs={12} md={6}>
@@ -85,7 +85,7 @@ export default function Dashboard() {
               label="REQUEST_CHANGES"
               value={verdicts.request_changes ?? '—'}
               icon={<CloseCircleOutlined />}
-              accent="#fb7185"
+              accent="#f07178"
             />
           </Col>
         </Row>
@@ -128,7 +128,7 @@ export default function Dashboard() {
         style={{ marginTop: 20 }}
         title={
           <span>
-            <FireOutlined style={{ color: '#fb7185' }} /> 最近任务
+            <FireOutlined style={{ color: '#f07178' }} /> 最近任务
           </span>
         }
         extra={
@@ -144,7 +144,7 @@ export default function Dashboard() {
               onClick={() => nav(`/tasks/${t.id || t.task_id}`)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-                padding: '10px 8px', borderRadius: 10, borderBottom: '1px solid rgba(88,148,255,0.08)',
+                padding: '10px 8px', borderRadius: 10, borderBottom: '1px solid rgba(148,163,184,0.08)',
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>

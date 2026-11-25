@@ -192,7 +192,7 @@ export default function Findings() {
             <Col xs={8}>
               <Card size="small">
                 <Statistic title="未抑制" value={counts?.open ?? 0}
-                  valueStyle={{ color: counts?.open ? '#fbbf24' : undefined }} />
+                  valueStyle={{ color: counts?.open ? '#f0b429' : undefined }} />
               </Card>
             </Col>
             <Col xs={8}>

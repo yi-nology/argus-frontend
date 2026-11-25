@@ -108,8 +108,7 @@ export default function Tasks() {
             )},
             { title: '裁决', dataIndex: 'verdict', render: (v: string) =>
               v ? <Tag color={verdictColor[v] || 'default'}>{v}</Tag> : '—' },
-            { title: 'fix', dataIndex: 'fix_status', render: (v: string) => (v ? <Tag>{v}</Tag> : '—') },
-            { title: '更新', dataIndex: 'updated_at', render: (v: string) => (
+            { title: '创建', dataIndex: 'created_at', render: (v: string) => (
               <span className="mono" style={{ fontSize: 11 }}>{(v || '').slice(0, 19) || '—'}</span>
             )},
           ]}

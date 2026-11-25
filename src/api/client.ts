@@ -47,6 +47,7 @@ export interface TaskRow {
   verdict?: string
   fix_status?: string
   head_sha?: string
+  created_at?: string
   updated_at?: string
   report?: string
   tokens_used?: number
@@ -55,6 +56,38 @@ export interface TaskRow {
   /** 按仓回复控制静默条数（v8.5.0）：floor/cap 分列。 */
   silenced_floor?: number
   silenced_cap?: number
+}
+
+/**
+ * 任务 API 是 thrift camelCase（taskId/headSha/createdAt/replyState…），页面按
+ * snake_case 消费；在客户端边界归一，避免各页重复判空（曾致列表点开
+ * /tasks/undefined）。
+ */
+function tsText(v: unknown): string | undefined {
+  if (typeof v === 'number' && v > 0) {
+    return new Date(v * 1000).toISOString().slice(0, 19).replace('T', ' ')
+  }
+  if (typeof v === 'string' && v !== '') return v
+  return undefined
+}
+
+function normalizeTask(raw: any): TaskRow {
+  if (!raw) return raw
+  const id = raw.taskId ?? raw.task_id ?? raw.id
+  const created = tsText(raw.createdAt ?? raw.created_at)
+  return {
+    ...raw,
+    id,
+    task_id: id,
+    head_sha: raw.headSha ?? raw.head_sha,
+    created_at: created,
+    updated_at: tsText(raw.updatedAt ?? raw.updated_at) ?? created,
+    fix_status: raw.fixStatus ?? raw.fix_status,
+    tokens_used: raw.tokensUsed ?? raw.tokens_used,
+    reply_state: raw.replyState ?? raw.reply_state,
+    silenced_floor: raw.silencedFloor ?? raw.silenced_floor,
+    silenced_cap: raw.silencedCap ?? raw.silenced_cap,
+  }
 }
 
 /** 意见治理行（GET /findings；finding_prints 跨 PR 视图）。 */
@@ -193,9 +226,12 @@ export const api = {
       body: payload,
     }),
 
-  listTasks: (query?: { status?: string; limit?: number }) =>
-    request<{ tasks: TaskRow[] } | TaskRow[]>('/tasks', { query: query as any }),
-  getTask: (id: string) => request<TaskRow>(`/tasks/${encodeURIComponent(id)}`),
+  listTasks: async (query?: { status?: string; limit?: number }) => {
+    const res = await request<{ tasks?: TaskRow[] } | TaskRow[]>('/tasks', { query: query as any })
+    const arr = Array.isArray(res) ? res : (res?.tasks ?? [])
+    return arr.map(normalizeTask)
+  },
+  getTask: async (id: string) => normalizeTask(await request<TaskRow>(`/tasks/${encodeURIComponent(id)}`)),
   getTaskStages: (id: string) =>
     request<{ task_id?: string; status?: string; verdict?: string; stages?: { stage: string; done: boolean }[] }>(
       `/tasks/${encodeURIComponent(id)}/stages`,

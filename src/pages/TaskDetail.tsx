@@ -14,7 +14,10 @@ export default function TaskDetail() {
   const [err, setErr] = useState('')
 
   useEffect(() => {
-    if (!taskId) return
+    if (!taskId || taskId === 'undefined') {
+      setErr('任务 ID 无效，请从任务列表重新进入')
+      return
+    }
     api.getTask(taskId).then(setTask).catch((e) => setErr(e?.message || '加载失败'))
     api.getTaskStages(taskId).then((r) => setStages(r?.stages ?? [])).catch(() => {/* 阶段面 best-effort */})
   }, [taskId])

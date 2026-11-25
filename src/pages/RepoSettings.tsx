@@ -68,6 +68,8 @@ export default function RepoSettings() {
   const [dirty, setDirty] = useState(false)
   const [state, setState] = useState<FormState>(DEFAULTS)
   const [overrides, setOverrides] = useState<string[]>([])
+  /** 近 30 天有审查任务的仓库（空态快速选择；免手输坐标）。 */
+  const [activeRepos, setActiveRepos] = useState<{ platform: string; owner: string; repo: string }[]>([])
   /** 近 30 天生效情况（stats/overview 按仓行；null = 无任务）。 */
   const [effect, setEffect] = useState<any>(null)
   const effectSeq = useRef(0)
@@ -85,6 +87,16 @@ export default function RepoSettings() {
         setOverrides(rows.map((x) => `${x.platform}:${x.owner}/${x.repo}`))
       })
       .catch(() => {/* 清单失败不阻断手输 */})
+  }, [])
+
+  /** 近期活跃仓库：空态下给一键选择，省去手输 owner/repo（也避免子组仓库名写错）。 */
+  useEffect(() => {
+    api.statsOverview({ days: 30 })
+      .then((s) => {
+        const rows = (s?.repos ?? []) as { platform: string; owner: string; repo: string }[]
+        setActiveRepos(rows.slice(0, 12))
+      })
+      .catch(() => {/* 统计失败不阻断手输 */})
   }, [])
 
   /** 生效情况（v8.5.0）：统计窗口内的任务量/节流次数/静默条数，
@@ -188,7 +200,7 @@ export default function RepoSettings() {
   const preview = useMemo(() => previewText(state), [state])
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto' }}>
+    <div className="page" style={{ maxWidth: 1280 }}>
       <Typography.Title level={3} style={{ marginTop: 0 }}>
         <ControlOutlined /> 仓库设置
       </Typography.Title>
@@ -240,8 +252,37 @@ export default function RepoSettings() {
         </Space>
       </Card>
 
+      {activeRepos.length > 0 && (
+        <Card
+          size="small"
+          style={{ marginBottom: 16 }}
+          title={<Space><ThunderboltOutlined />近期活跃仓库</Space>}
+          extra={<Typography.Text type="secondary" style={{ fontSize: 12 }}>近 30 天有审查任务 · 点击直接加载</Typography.Text>}
+        >
+          <Space wrap size={[8, 8]}>
+            {activeRepos.map((r) => {
+              const label = `${r.platform}/${r.owner}/${r.repo}`
+              const active = r.platform === platform && r.owner === owner && r.repo === repo
+              return (
+                <Tag
+                  key={label}
+                  color={active ? 'blue' : undefined}
+                  style={{ cursor: 'pointer', marginInlineEnd: 0 }}
+                  onClick={() => {
+                    setPlatform(r.platform); setOwner(r.owner); setRepo(r.repo)
+                    void load(r.platform, r.owner, r.repo)
+                  }}
+                >
+                  <span className="mono" style={{ fontSize: 12 }}>{label}</span>
+                </Tag>
+              )
+            })}
+          </Space>
+        </Card>
+      )}
+
       {!loaded && (
-        <Empty description="选择仓库并加载设置" style={{ margin: '64px 0' }} />
+        <Empty description="选择上方仓库加载设置；近期活跃仓库可一键载入" style={{ margin: '48px 0' }} />
       )}
 
       {loaded && (

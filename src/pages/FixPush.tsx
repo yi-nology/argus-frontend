@@ -25,6 +25,12 @@ interface FixPushPreview {
 /** 推送成功状态词（后端 FixPushConfirmResponse.status）。 */
 const OK_STATUS = new Set(['pushed', 'pr_created', 'cr_existed'])
 
+const STEPS = [
+  { title: '预览就绪态', desc: '只读校验任务、当前 head 与待审批高危票；不写远端。' },
+  { title: '高危审批', desc: 'critical / high 逐票批准（maintainer）；缺票即 fail-closed。' },
+  { title: '确认推送', desc: '绑定 expected_remote_head；陈旧 head 拒绝，失败可读回对账。' },
+]
+
 export default function FixPush() {
   const { message } = App.useApp()
   const { user, can } = useAuth()
@@ -170,6 +176,34 @@ export default function FixPush() {
           </Form.Item>
         </Form>
       </Card>
+
+      {!prev && (
+        <Row gutter={[12, 12]}>
+          {STEPS.map((s, i) => (
+            <Col xs={24} md={8} key={s.title}>
+              <Card className="glass" size="small" style={{ height: '100%' }}>
+                <Space align="start" size={10}>
+                  <span
+                    style={{
+                      flex: '0 0 22px', width: 22, height: 22, borderRadius: 11,
+                      display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700,
+                      color: '#041018', background: 'linear-gradient(135deg,#5b8def,#8b7cf6)',
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div>
+                    <Typography.Text strong>{s.title}</Typography.Text>
+                    <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4, lineHeight: 1.55 }}>
+                      {s.desc}
+                    </div>
+                  </div>
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
 
       <Spin spinning={busy}>
         {prev && (

@@ -17,6 +17,9 @@ const SEVERITY_COLOR: Record<string, string> = {
   critical: 'magenta', high: 'red', medium: 'orange', low: 'blue',
 }
 
+/** 分布展示的固定顺序（未知级别归 other）。 */
+const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'other']
+
 const STATUS_OPTIONS = [
   { label: '全部', value: '' },
   { label: '未抑制', value: 'open' },
@@ -53,6 +56,8 @@ export default function Findings() {
   const [kw, setKw] = useState('')
   const [rows, setRows] = useState<FindingRow[]>([])
   const [counts, setCounts] = useState<{ total: number; open: number; suppressed: number } | null>(null)
+  const [sevCounts, setSevCounts] = useState<Record<string, number>>({})
+  const [topFiles, setTopFiles] = useState<{ file: string; total: number; suppressed: number }[]>([])
   const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -70,6 +75,8 @@ export default function Findings() {
       })
       setRows(res?.findings ?? [])
       setCounts(res?.counts ?? null)
+      setSevCounts(res?.severity_counts ?? {})
+      setTopFiles(res?.top_files ?? [])
       setLoaded(true)
     } catch (e: any) {
       message.error(e?.message || '查询失败（需要 read 档 token 且仓库在授权范围内）')
@@ -192,6 +199,47 @@ export default function Findings() {
               <Card size="small"><Statistic title="已抑制" value={counts?.suppressed ?? 0} /></Card>
             </Col>
           </Row>
+
+          {/* 分布与噪声文件（v8.5.2：为抑制决策提供依据） */}
+          {(Object.keys(sevCounts).length > 0 || topFiles.length > 0) && (
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+              <Col xs={24} md={10}>
+                <Card size="small" title="严重度分布">
+                  <Space wrap>
+                    {SEVERITY_ORDER.filter((k) => sevCounts[k]).map((k) => (
+                      <Tag key={k} color={SEVERITY_COLOR[k] || 'default'}>
+                        {k.toUpperCase()} {sevCounts[k]}
+                      </Tag>
+                    ))}
+                  </Space>
+                </Card>
+              </Col>
+              <Col xs={24} md={14}>
+                <Card
+                  size="small"
+                  title="高频噪声文件"
+                  extra={<Typography.Text type="secondary" style={{ fontSize: 12 }}>点击文件名筛选</Typography.Text>}
+                >
+                  {topFiles.length === 0 ? (
+                    <Typography.Text type="secondary">暂无</Typography.Text>
+                  ) : topFiles.map((f) => (
+                    <div
+                      key={f.file}
+                      onClick={() => setKw(f.file)}
+                      style={{ display: 'flex', gap: 8, cursor: 'pointer', padding: '3px 0' }}
+                    >
+                      <Typography.Text className="mono" style={{ fontSize: 12, flex: 1 }} ellipsis>
+                        {f.file}
+                      </Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                        共 {f.total} · 抑制 {f.suppressed}
+                      </Typography.Text>
+                    </div>
+                  ))}
+                </Card>
+              </Col>
+            </Row>
+          )}
 
           <Card
             size="small"

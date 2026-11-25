@@ -294,6 +294,10 @@ export const api = {
     request<{
       findings?: FindingRow[]
       counts?: { total: number; open: number; suppressed: number }
+      /** v8.5.2：严重度分布（仓内全量，非当前页）。 */
+      severity_counts?: Record<string, number>
+      /** v8.5.2：噪声最高文件（按出现次数降序，最多 10 条）。 */
+      top_files?: { file: string; total: number; suppressed: number }[]
       limit?: number
     }>('/findings', { query: query as any }),
   suppressFinding: (payload: {

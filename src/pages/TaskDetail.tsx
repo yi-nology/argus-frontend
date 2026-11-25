@@ -10,11 +10,13 @@ export default function TaskDetail() {
   const { taskId } = useParams<{ taskId: string }>()
   const nav = useNavigate()
   const [task, setTask] = useState<TaskRow | null>(null)
+  const [stages, setStages] = useState<{ stage: string; done: boolean }[]>([])
   const [err, setErr] = useState('')
 
   useEffect(() => {
     if (!taskId) return
     api.getTask(taskId).then(setTask).catch((e) => setErr(e?.message || '加载失败'))
+    api.getTaskStages(taskId).then((r) => setStages(r?.stages ?? [])).catch(() => {/* 阶段面 best-effort */})
   }, [taskId])
 
   if (err) return <div className="page">⚠ {err}</div>
@@ -84,6 +86,21 @@ export default function TaskDetail() {
           }>意见治理</Button>
         </Space>
       </Card>
+
+      {stages.length > 0 && (
+        <Card className="glass" size="small" title="执行阶段" style={{ marginBottom: 16 }}>
+          <Space wrap>
+            {stages.map((s) => (
+              <Tag key={s.stage} color={s.done ? 'success' : 'default'}>
+                {s.stage}{s.done ? ' ✓' : ''}
+              </Tag>
+            ))}
+          </Space>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+            阶段完成度来自任务产物/进度标记推导（零 LLM）；跳过的阶段按进度标记处理。
+          </Typography.Text>
+        </Card>
+      )}
 
       <Card className="glass" title="审查报告">
         {task.report ? (

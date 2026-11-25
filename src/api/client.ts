@@ -196,6 +196,10 @@ export const api = {
   listTasks: (query?: { status?: string; limit?: number }) =>
     request<{ tasks: TaskRow[] } | TaskRow[]>('/tasks', { query: query as any }),
   getTask: (id: string) => request<TaskRow>(`/tasks/${encodeURIComponent(id)}`),
+  getTaskStages: (id: string) =>
+    request<{ task_id?: string; status?: string; verdict?: string; stages?: { stage: string; done: boolean }[] }>(
+      `/tasks/${encodeURIComponent(id)}/stages`,
+    ),
   createTask: (payload: {
     kind?: number
     platform: string

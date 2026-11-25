@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Descriptions, Space, Spin, Tag, Tooltip, Typography } from 'antd'
 import { XMarkdown } from '@ant-design/x-markdown'
-import { ArrowLeftOutlined, SafetyCertificateOutlined, MergeCellsOutlined, BugOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SafetyCertificateOutlined, MergeCellsOutlined, BugOutlined, SendOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
@@ -90,6 +90,9 @@ export default function TaskDetail() {
           <Button icon={<BugOutlined />} disabled={!hasPR} onClick={() =>
             nav(`/findings?platform=${encodeURIComponent(task.platform || '')}&owner=${encodeURIComponent(task.owner || '')}&repo=${encodeURIComponent(task.repo || '')}`)
           }>意见治理</Button>
+          <Button icon={<SendOutlined />} disabled={!hasPR} onClick={() =>
+            nav(`/fix-push?platform=${task.platform}&owner=${task.owner}&repo=${task.repo}&number=${task.number}`)
+          }>受控推送</Button>
         </Space>
       </Card>
 

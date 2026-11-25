@@ -43,6 +43,13 @@ const DEFAULTS: FormState = {
   reportTemplate: '',
 }
 
+/** 一键预设：把三个回复旋钮组合成场景，降低「每个数字填多少」的理解成本。 */
+const PRESETS: { label: string; desc: string; values: Partial<FormState> }[] = [
+  { label: '少打扰', desc: '4 小时节流 · 每 MR top5 · medium 及以上', values: { throttle: 240, cap: 5, floor: 'medium' } },
+  { label: '标准', desc: '1 小时节流 · 每 MR top10 · low 及以上', values: { throttle: 60, cap: 10, floor: 'low' } },
+  { label: '全量', desc: '不节流 · 不封顶 · 报告全部级别', values: { throttle: 0, cap: 0, floor: '' } },
+]
+
 /** 把旋钮翻译成人话（实时预览条）。 */
 function previewText(s: FormState): string {
   const parts: string[] = []
@@ -78,6 +85,17 @@ export default function RepoSettings() {
     setState((s) => ({ ...s, ...p }))
     setDirty(true)
   }
+
+  /** 有未保存修改时离开页面给出浏览器级确认（误关标签页丢旋钮配置）。 */
+  useEffect(() => {
+    if (!dirty) return
+    const h = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', h)
+    return () => window.removeEventListener('beforeunload', h)
+  }, [dirty])
 
   /** 已有覆盖的仓库清单（快捷选择，免手输）。 */
   useEffect(() => {
@@ -171,11 +189,14 @@ export default function RepoSettings() {
       }
       // 全空 = 语义等同恢复默认
       const hasValue = Object.values(body).some((v) => v !== undefined)
+      const key = `${platform}:${owner}/${repo}`
       if (!hasValue) {
         await api.deleteRepoSettings(platform, owner, repo)
+        setOverrides((prev) => prev.filter((x) => x !== key))
         message.success('已恢复全局默认（覆盖已删除）')
       } else {
         await api.putRepoSettings(platform, owner, repo, body)
+        setOverrides((prev) => (prev.includes(key) ? prev : [...prev, key]))
         message.success('设置已保存，下一个审查任务起生效')
       }
       setDirty(false)
@@ -189,6 +210,7 @@ export default function RepoSettings() {
   const reset = async () => {
     try {
       await api.deleteRepoSettings(platform, owner, repo)
+      setOverrides((prev) => prev.filter((x) => x !== `${platform}:${owner}/${repo}`))
       setState(DEFAULTS)
       setDirty(false)
       message.success('已恢复全局默认')
@@ -235,6 +257,9 @@ export default function RepoSettings() {
           <Button type="primary" icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>
             加载设置
           </Button>
+          {loaded && overrides.includes(`${platform}:${owner}/${repo}`) && (
+            <Tag color="blue">本仓已有覆盖</Tag>
+          )}
           {overrides.length > 0 && (
             <Select
               placeholder={`已有覆盖（${overrides.length}）`}
@@ -293,6 +318,17 @@ export default function RepoSettings() {
             style={{ marginBottom: 16 }}
             extra={dirty && <Tag color="orange">有未保存修改</Tag>}
           >
+            <Space wrap style={{ marginBottom: 16 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>快捷预设：</Typography.Text>
+              {PRESETS.map((p) => (
+                <Tooltip key={p.label} title={p.desc}>
+                  <Button size="small" onClick={() => patch(p.values)}>{p.label}</Button>
+                </Tooltip>
+              ))}
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                预设只改回复三个旋钮，保存后对下一个审查任务生效
+              </Typography.Text>
+            </Space>
             <Row gutter={[24, 16]}>
               <Col xs={24} md={8}>
                 <Typography.Text strong>回复频次</Typography.Text>
@@ -475,6 +511,24 @@ export default function RepoSettings() {
               </Button>
             )}
           </Space>
+
+          {dirty && (
+            <div style={{ position: 'sticky', bottom: 16, marginTop: 16, zIndex: 10 }}>
+              <Card size="small" className="glass">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Tag color="orange">有未保存修改</Tag>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    保存后对下一个审查任务生效
+                  </Typography.Text>
+                  <div style={{ flex: 1 }} />
+                  <Button size="small" onClick={() => load()}>放弃</Button>
+                  <Button size="small" type="primary" icon={<SaveOutlined />} loading={saving} onClick={save}>
+                    保存
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
         </Spin>
       )}
     </div>

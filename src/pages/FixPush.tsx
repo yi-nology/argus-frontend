@@ -4,11 +4,12 @@ import {
   Space, Spin, Statistic, Tag, Typography,
 } from 'antd'
 import {
-  AuditOutlined, CheckCircleOutlined, ReloadOutlined, SearchOutlined, SendOutlined,
+  AuditOutlined, CheckCircleFilled, CheckCircleOutlined, CloseCircleFilled,
+  HistoryOutlined, ReloadOutlined, SearchOutlined, SendOutlined,
   ThunderboltOutlined, WarningOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, type TaskRow } from '../api/client'
 import { PLATFORMS } from '../constants/platforms'
 import { useAuth } from '../auth/AuthContext'
 
@@ -22,6 +23,14 @@ interface FixPushPreview {
   mode?: string
 }
 
+interface FixPushResult {
+  status: string
+  message: string
+  task_id?: string
+  head_sha?: string
+  fix_status?: string
+}
+
 /** 推送成功状态词（后端 FixPushConfirmResponse.status）。 */
 const OK_STATUS = new Set(['pushed', 'pr_created', 'cr_existed'])
 
@@ -31,6 +40,8 @@ const STEPS = [
   { title: '确认推送', desc: '绑定 expected_remote_head；陈旧 head 拒绝，失败可读回对账。' },
 ]
 
+type Coords = { platform: string; owner: string; repo: string; number: string }
+
 export default function FixPush() {
   const { message } = App.useApp()
   const { user, can } = useAuth()
@@ -38,24 +49,12 @@ export default function FixPush() {
   const nav = useNavigate()
   const [form] = Form.useForm()
   const [prev, setPrev] = useState<FixPushPreview | null>(null)
+  const [result, setResult] = useState<FixPushResult | null>(null)
+  const [tasks, setTasks] = useState<TaskRow[]>([])
   const [forbidden, setForbidden] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  // 从任务详情/审批页带坐标跳转时预填。
-  useEffect(() => {
-    const sp = new URLSearchParams(window.location.search)
-    if (sp.get('platform')) {
-      form.setFieldsValue({
-        platform: sp.get('platform')!,
-        owner: sp.get('owner') || '',
-        repo: sp.get('repo') || '',
-        number: sp.get('number') || '',
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const q = () => {
+  const q = (): Coords => {
     const v = form.getFieldsValue()
     return {
       platform: v.platform as string,
@@ -65,14 +64,14 @@ export default function FixPush() {
     }
   }
 
-  const preview = async () => {
-    const query = q()
+  const doPreview = async (query: Coords) => {
     if (!query.platform || !query.owner || !query.repo || !query.number) {
       message.warning('请填写完整的仓库坐标与 PR 号')
       return
     }
     setBusy(true)
     setForbidden(false)
+    setResult(null)
     try {
       const r = await api.fixPushPreview(query)
       setPrev(r)
@@ -89,6 +88,40 @@ export default function FixPush() {
     }
   }
 
+  const preview = () => doPreview(q())
+
+  // 从任务详情/审批页带坐标跳转时预填并自动预览；同时载入最近任务供一键选择。
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const coords: Coords = {
+      platform: sp.get('platform') || '',
+      owner: sp.get('owner') || '',
+      repo: sp.get('repo') || '',
+      number: sp.get('number') || '',
+    }
+    if (coords.platform) {
+      form.setFieldsValue(coords)
+      if (coords.owner && coords.repo && coords.number) void doPreview(coords)
+    }
+    api.listTasks({ limit: 30 })
+      .then((rows) => setTasks(rows.filter((t) => !!t.head_sha && !!t.id)))
+      .catch(() => {/* 任务清单失败不阻断手输 */})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const pickTask = (id: string) => {
+    const t = tasks.find((x) => (x.id || x.task_id) === id)
+    if (!t) return
+    const coords: Coords = {
+      platform: t.platform || '',
+      owner: t.owner || '',
+      repo: t.repo || '',
+      number: String(t.number || ''),
+    }
+    form.setFieldsValue(coords)
+    void doPreview(coords)
+  }
+
   const confirm = async () => {
     if (!prev?.ready || !prev.task_id || !prev.head_sha) return
     setBusy(true)
@@ -96,6 +129,10 @@ export default function FixPush() {
       const r = await api.fixPushConfirm({
         task_id: prev.task_id,
         expected_remote_head: prev.head_sha,
+      })
+      setResult({
+        status: r.status, message: r.message,
+        task_id: prev.task_id, head_sha: r.head_sha || prev.head_sha, fix_status: r.fix_status,
       })
       if (OK_STATUS.has(r.status)) {
         message.success(`推送完成：${r.status} — ${r.message}`)
@@ -118,6 +155,16 @@ export default function FixPush() {
   }
 
   const confirmable = !!prev?.ready && prev.mode === 'confirm' && !!prev.task_id && !!prev.head_sha
+
+  const checks = prev
+    ? [
+        { ok: !!prev.task_id, label: '任务存在' },
+        { ok: !!prev.head_sha, label: 'head 已绑定' },
+        { ok: prev.mode === 'confirm', label: `推送模式 ${prev.mode || '—'}` },
+        { ok: (prev.pending_approvals ?? 0) === 0, label: `高危审批齐备（${prev.pending_approvals ?? 0} 待批）` },
+        { ok: prev.ready, label: '后端判定 READY' },
+      ]
+    : []
 
   return (
     <div className="page">
@@ -152,6 +199,28 @@ export default function FixPush() {
       )}
 
       <Card className="glass" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+          <HistoryOutlined style={{ color: '#5b8def' }} />
+          <Select
+            showSearch
+            allowClear
+            placeholder="从最近任务载入（自动填充并预览）"
+            style={{ flex: '1 1 420px', maxWidth: 560 }}
+            value={undefined}
+            options={tasks.map((t) => ({
+              value: t.id || t.task_id || '',
+              label: `${t.platform}/${t.owner}/${t.repo}#${t.number} · ${t.status}`,
+            }))}
+            filterOption={(input, opt) =>
+              String(opt?.label || '').toLowerCase().includes(input.toLowerCase())
+            }
+            onChange={(id) => id && pickTask(String(id))}
+            disabled={!canDecide}
+          />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            从任务详情跳转会带入参数并自动预览；也可直接填写下方坐标
+          </Typography.Text>
+        </div>
         <Form form={form} layout="inline" onFinish={preview} style={{ rowGap: 10 }}>
           <Form.Item name="platform" initialValue="gitlab" rules={[{ required: true, message: '平台必填' }]}>
             <Select
@@ -164,7 +233,7 @@ export default function FixPush() {
             <Input placeholder="owner / 组织" style={{ width: 170 }} />
           </Form.Item>
           <Form.Item name="repo" rules={[{ required: true, message: 'repo 必填' }]}>
-            <Input placeholder="仓库名" style={{ width: 170 }} />
+            <Input placeholder="仓库名（支持 ops/xxx）" style={{ width: 190 }} />
           </Form.Item>
           <Form.Item name="number" rules={[{ required: true, message: 'PR 号必填' }]}>
             <Input placeholder="PR #" style={{ width: 100 }} />
@@ -205,6 +274,30 @@ export default function FixPush() {
         </Row>
       )}
 
+      {result && (
+        <Card
+          className="glass"
+          size="small"
+          style={{ marginBottom: 16 }}
+          title={
+            <Space>
+              推送结果
+              <Tag color={OK_STATUS.has(result.status) ? 'success' : 'warning'}>{result.status}</Tag>
+            </Space>
+          }
+          extra={result.task_id && (
+            <Button size="small" onClick={() => nav(`/tasks/${result.task_id}`)}>查看任务</Button>
+          )}
+        >
+          <Space direction="vertical" size={6}>
+            <Typography.Text>{result.message}</Typography.Text>
+            <Typography.Text type="secondary" className="mono" style={{ fontSize: 12 }}>
+              task {result.task_id || '—'} · head {(result.head_sha || '').slice(0, 16) || '—'} · fix_status {result.fix_status || '—'}
+            </Typography.Text>
+          </Space>
+        </Card>
+      )}
+
       <Spin spinning={busy}>
         {prev && (
           <Card
@@ -219,8 +312,27 @@ export default function FixPush() {
                 {prev.mode && <Tag>mode: {prev.mode}</Tag>}
               </Space>
             }
-            extra={<Button size="small" icon={<ReloadOutlined />} onClick={preview}>刷新</Button>}
+            extra={
+              <Space>
+                {prev.task_id && (
+                  <Button size="small" onClick={() => nav(`/tasks/${prev.task_id}`)}>任务详情</Button>
+                )}
+                <Button size="small" icon={<ReloadOutlined />} onClick={preview}>刷新</Button>
+              </Space>
+            }
           >
+            <Space wrap size={[8, 8]} style={{ marginBottom: 16 }}>
+              {checks.map((c) => (
+                <Tag
+                  key={c.label}
+                  color={c.ok ? 'success' : 'error'}
+                  icon={c.ok ? <CheckCircleFilled /> : <CloseCircleFilled />}
+                >
+                  {c.label}
+                </Tag>
+              ))}
+            </Space>
+
             <Row gutter={[24, 12]} style={{ marginBottom: 16 }}>
               <Col xs={12} md={5}>
                 <Statistic

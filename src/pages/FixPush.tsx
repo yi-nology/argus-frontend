@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { PLATFORMS } from '../constants/platforms'
+import { useAuth } from '../auth/AuthContext'
 
 interface FixPushPreview {
   task_id?: string
@@ -26,9 +27,12 @@ const OK_STATUS = new Set(['pushed', 'pr_created', 'cr_existed'])
 
 export default function FixPush() {
   const { message } = App.useApp()
+  const { user, can } = useAuth()
+  const canDecide = can('decide_review')
   const nav = useNavigate()
   const [form] = Form.useForm()
   const [prev, setPrev] = useState<FixPushPreview | null>(null)
+  const [forbidden, setForbidden] = useState(false)
   const [busy, setBusy] = useState(false)
 
   // 从任务详情/审批页带坐标跳转时预填。
@@ -62,12 +66,18 @@ export default function FixPush() {
       return
     }
     setBusy(true)
+    setForbidden(false)
     try {
       const r = await api.fixPushPreview(query)
       setPrev(r)
     } catch (e: any) {
       setPrev(null)
-      message.error(e?.message || '预览失败')
+      if (e?.status === 403) {
+        setForbidden(true)
+        message.warning('无业务裁定权限：需要 maintainer 角色')
+      } else {
+        message.error(e?.message || '预览失败')
+      }
     } finally {
       setBusy(false)
     }
@@ -113,6 +123,28 @@ export default function FixPush() {
         expected_remote_head（陈旧 head 会被拒绝）。
       </Typography.Paragraph>
 
+      {!canDecide && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="当前账号无推送裁定权限"
+          description={
+            `平台管理（${user?.role || '—'}）与业务裁定物理分离：受控推送属于 maintainer 角色。` +
+            '请用 maintainer 账号登录（或部署超管静态 token）后再操作。'
+          }
+        />
+      )}
+      {forbidden && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="推送预览被拒绝（403）"
+          description="该接口要求 admin 档 + 业务裁定角色（maintainer），平台 admin 刻意无推送权。"
+        />
+      )}
+
       <Card className="glass" style={{ marginBottom: 16 }}>
         <Form form={form} layout="inline" onFinish={preview} style={{ rowGap: 10 }}>
           <Form.Item name="platform" initialValue="gitlab" rules={[{ required: true, message: '平台必填' }]}>
@@ -132,7 +164,7 @@ export default function FixPush() {
             <Input placeholder="PR #" style={{ width: 100 }} />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={busy}>
+            <Button type="primary" htmlType="submit" icon={<SearchOutlined />} loading={busy} disabled={!canDecide}>
               预览就绪态
             </Button>
           </Form.Item>

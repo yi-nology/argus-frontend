@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Card, Form, Input, Space, Table, Tag, Typography } from 'antd'
+import { Alert, App, Button, Card, Form, Input, Space, Table, Tag, Typography } from 'antd'
 import { CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons'
 import { api, type FixTicket } from '../api/client'
 import { StatusDot } from '../components/Widgets'
+import { useAuth } from '../auth/AuthContext'
 
 const statusColor: Record<string, string> = {
   approved: 'success', rejected: 'error', stale: 'warning', pending: 'processing',
@@ -10,13 +11,18 @@ const statusColor: Record<string, string> = {
 
 export default function Approvals() {
   const { message } = App.useApp()
+  const { user, can } = useAuth()
+  /** 业务裁定面：maintainer / 静态超管 token；平台 admin 刻意无此权限。 */
+  const canDecide = can('decide_review')
   const [tickets, setTickets] = useState<FixTicket[]>([])
   const [pending, setPending] = useState(0)
+  const [forbidden, setForbidden] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
 
   const load = async (v: any) => {
     setLoading(true)
+    setForbidden(false)
     try {
       const res = await api.listFixApprovals({
         platform: v.platform, owner: v.owner, repo: v.repo, number: String(v.number),
@@ -24,7 +30,14 @@ export default function Approvals() {
       setTickets(res.tickets || [])
       setPending(res.pending_count ?? 0)
     } catch (e: any) {
-      message.error(e?.message || '查询失败')
+      setTickets([])
+      setPending(0)
+      if (e?.status === 403) {
+        setForbidden(true)
+        message.warning('无业务裁定权限：当前账号不能查询/裁决审批票')
+      } else {
+        message.error(e?.message || '查询失败')
+      }
     } finally {
       setLoading(false)
     }
@@ -63,6 +76,28 @@ export default function Approvals() {
       <Typography.Paragraph className="page-sub">
         critical / high 具名批准 · 缺票 = 未批准（fail-closed）· 新 head 旧票 stale
       </Typography.Paragraph>
+
+      {!canDecide && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="当前账号无业务裁定权限"
+          description={
+            `平台管理（${user?.role || '—'}）与业务裁定物理分离：审批/合并/推送属于 maintainer 角色。` +
+            '请用 maintainer 账号登录（或部署超管静态 token）后再操作；read 档仍可查看审查结果与报告。'
+          }
+        />
+      )}
+      {forbidden && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="审批票查询被拒绝（403）"
+          description="该接口要求 admin 档 + 业务裁定角色（maintainer）。平台 admin 账号刻意无裁定权，防止平台管理员越权改码。"
+        />
+      )}
 
       <Card className="glass" style={{ marginBottom: 16 }}>
         <Form form={form} layout="inline" onFinish={load} style={{ rowGap: 10 }}>
@@ -109,7 +144,7 @@ export default function Approvals() {
               <span><StatusDot status={s} /> <Tag color={statusColor[s]}>{s}</Tag></span>
             )},
             { title: '操作', render: (_, t) =>
-              t.status === 'pending' ? (
+              t.status === 'pending' && canDecide ? (
                 <Space>
                   <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => decide(t.id, 'approved')}>
                     批准

@@ -62,7 +62,7 @@ export default function Dashboard() {
       <Spin spinning={loading}>
         <Row gutter={[16, 16]}>
           <Col xs={12} md={6}>
-            <StatCard label="任务总量" value={stats?.total_tasks ?? '—'} icon={<RocketOutlined />} />
+            <StatCard label="任务总量" value={stats?.tasks_done ?? '—'} icon={<RocketOutlined />} />
           </Col>
           <Col xs={12} md={6}>
             <StatCard

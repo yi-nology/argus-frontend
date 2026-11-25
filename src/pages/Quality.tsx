@@ -140,15 +140,28 @@ export default function Quality() {
             <Typography.Text type="secondary">配额口径（done 任务，全部仓库合计）</Typography.Text>
             <Statistic value={fmtNum(usage?.total)} />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              每仓月度上限 {fmtNum(usage?.budget)}；按仓水位见下表
+              {usage?.budget > 0
+                ? <>每仓月度上限 {fmtNum(usage?.budget)}；按仓水位见下表</>
+                : <>未设每仓月度上限（全局预算关闭，可在仓库设置按仓配置）</>}
             </Typography.Text>
           </Col>
           <Col xs={24} md={8}>
             <Typography.Text type="secondary">逐调用实销（含失败/重试）</Typography.Text>
-            <Progress percent={pct(usage?.real_total, usage?.real_budget)} status={pct(usage?.real_total, usage?.real_budget) >= 100 ? 'exception' : 'normal'} />
-            <Typography.Text style={{ fontSize: 12 }}>
-              {fmtNum(usage?.real_total)} / {fmtNum(usage?.real_budget)}
-            </Typography.Text>
+            {usage?.real_budget > 0 ? (
+              <>
+                <Progress percent={pct(usage?.real_total, usage?.real_budget)} status={pct(usage?.real_total, usage?.real_budget) >= 100 ? 'exception' : 'normal'} />
+                <Typography.Text style={{ fontSize: 12 }}>
+                  {fmtNum(usage?.real_total)} / {fmtNum(usage?.real_budget)}
+                </Typography.Text>
+              </>
+            ) : (
+              <>
+                <Statistic value={fmtNum(usage?.real_total)} />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  未设月度上限（实销仅作观测）
+                </Typography.Text>
+              </>
+            )}
           </Col>
           <Col xs={24} md={8}>
             <Typography.Text type="secondary">活跃预留（执行前承诺）</Typography.Text>

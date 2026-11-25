@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Card, Col, Form, Input, Row, Space, Statistic, Tag, Typography } from 'antd'
+import { Alert, App, Button, Card, Col, Form, Input, Row, Space, Statistic, Tag, Typography } from 'antd'
 import {
   CheckCircleOutlined, CloseCircleOutlined, SearchOutlined, MergeCellsOutlined, SyncOutlined,
 } from '@ant-design/icons'
 import { api, type MergeEligibility } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 
 export default function Merges() {
   const { message } = App.useApp()
+  const { user, can } = useAuth()
+  const canDecide = can('decide_review')
   const [form] = Form.useForm()
   const [elig, setElig] = useState<MergeEligibility | null>(null)
   const [op, setOp] = useState<{ op_id?: string; eligible?: boolean; expected_remote_head?: string } | null>(null)
+  const [forbidden, setForbidden] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const q = () => {
@@ -32,11 +36,18 @@ export default function Merges() {
 
   const check = async () => {
     setBusy(true)
+    setForbidden(false)
     try {
       const r = await api.mergeEligibility(q())
       setElig(r.eligibility)
     } catch (e: any) {
-      message.error(e?.message || '查询失败')
+      setElig(null)
+      if (e?.status === 403) {
+        setForbidden(true)
+        message.warning('无业务裁定权限：需要 maintainer 角色')
+      } else {
+        message.error(e?.message || '查询失败')
+      }
     } finally {
       setBusy(false)
     }
@@ -87,6 +98,28 @@ export default function Merges() {
       <Typography.Paragraph className="page-sub">
         七条 fail-closed · preview → confirm 绑定 expected_remote_head · uncertain 读回对账
       </Typography.Paragraph>
+
+      {!canDecide && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="当前账号无合并裁定权限"
+          description={
+            `平台管理（${user?.role || '—'}）与业务裁定物理分离：合并资格/受控合并属于 maintainer 角色。` +
+            '请用 maintainer 账号登录（或部署超管静态 token）后再操作。'
+          }
+        />
+      )}
+      {forbidden && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="资格门查询被拒绝（403）"
+          description="该接口要求 admin 档 + 业务裁定角色（maintainer），平台 admin 刻意无合并权。"
+        />
+      )}
 
       <Card className="glass" style={{ marginBottom: 16 }}>
         <Form form={form} layout="inline" onFinish={check} style={{ rowGap: 10 }}>
@@ -150,12 +183,12 @@ export default function Merges() {
           ))}
 
           <Space style={{ marginTop: 16 }} wrap>
-            <Button icon={<MergeCellsOutlined />} onClick={preview} loading={busy}>
+            <Button icon={<MergeCellsOutlined />} disabled={!canDecide} onClick={preview} loading={busy}>
               1. 预览（建候选）
             </Button>
             <Button
               type="primary" className="glow-btn" danger
-              disabled={!op?.op_id || !op?.eligible}
+              disabled={!canDecide || !op?.op_id || !op?.eligible}
               onClick={confirm} loading={busy}
             >
               2. 确认合并

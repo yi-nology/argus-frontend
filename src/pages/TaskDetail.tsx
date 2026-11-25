@@ -18,7 +18,9 @@ export default function TaskDetail() {
       setErr('任务 ID 无效，请从任务列表重新进入')
       return
     }
-    api.getTask(taskId).then(setTask).catch((e) => setErr(e?.message || '加载失败'))
+    api.getTask(taskId).then(setTask).catch((e) => {
+      setErr(e?.status === 403 ? '无权查看该任务（账号/令牌的仓库范围不包含该仓库）' : (e?.message || '加载失败'))
+    })
     api.getTaskStages(taskId).then((r) => setStages(r?.stages ?? [])).catch(() => {/* 阶段面 best-effort */})
   }, [taskId])
 
@@ -29,7 +31,8 @@ export default function TaskDetail() {
     </div>
   )
 
-  const pr = `${task.platform}/${task.owner}/${task.repo}#${task.number}`
+  const hasPR = !!(task.platform && task.owner && task.repo && task.number)
+  const pr = hasPR ? `${task.platform}/${task.owner}/${task.repo}#${task.number}` : `任务 ${(task.id || taskId || '').slice(0, 16)}`
   return (
     <div className="page">
       <Space style={{ marginBottom: 12 }}>
@@ -39,7 +42,7 @@ export default function TaskDetail() {
         {pr} <span className="grad-text">审查详情</span>
       </Typography.Title>
       <Typography.Paragraph className="page-sub mono">
-        task {(task.id || taskId || '').slice(0, 20)} · head {task.head_sha || '—'}
+        task {(task.id || taskId || '').slice(0, 20)} · head {task.head_sha || '—'} · {task.created_at || '—'}
       </Typography.Paragraph>
 
       <Card className="glass" style={{ marginBottom: 16 }}>
@@ -78,13 +81,13 @@ export default function TaskDetail() {
           ]}
         />
         <Space style={{ marginTop: 12 }}>
-          <Button icon={<SafetyCertificateOutlined />} onClick={() =>
+          <Button icon={<SafetyCertificateOutlined />} disabled={!hasPR} onClick={() =>
             nav(`/approvals?platform=${task.platform}&owner=${task.owner}&repo=${task.repo}&number=${task.number}`)
           }>审批票</Button>
-          <Button icon={<MergeCellsOutlined />} onClick={() =>
+          <Button icon={<MergeCellsOutlined />} disabled={!hasPR} onClick={() =>
             nav(`/merges?platform=${task.platform}&owner=${task.owner}&repo=${task.repo}&number=${task.number}`)
           }>合并资格</Button>
-          <Button icon={<BugOutlined />} onClick={() =>
+          <Button icon={<BugOutlined />} disabled={!hasPR} onClick={() =>
             nav(`/findings?platform=${encodeURIComponent(task.platform || '')}&owner=${encodeURIComponent(task.owner || '')}&repo=${encodeURIComponent(task.repo || '')}`)
           }>意见治理</Button>
         </Space>

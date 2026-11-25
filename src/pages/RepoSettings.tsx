@@ -87,6 +87,20 @@ export default function RepoSettings() {
       .catch(() => {/* 清单失败不阻断手输 */})
   }, [])
 
+  /** 生效情况（v8.5.0）：统计窗口内的任务量/节流次数/静默条数，
+   *  让「旋钮是否真的生效」可验证而不是只写在表单里。与设置覆盖是否
+   *  存在无关——404（无覆盖）也要拉，否则新仓库永远显示「暂无任务」。 */
+  const loadEffect = (p: string, o: string, r: string) => {
+    const seq = ++effectSeq.current
+    api.statsOverview({ days: 30, platform: p, owner: o, repo: r })
+      .then((s) => {
+        if (seq === effectSeq.current) setEffect((s?.repos ?? [])[0] ?? null)
+      })
+      .catch(() => {
+        if (seq === effectSeq.current) setEffect(null)
+      })
+  }
+
   const load = async (p = platform, o = owner, r = repo) => {
     if (!o || !r) {
       message.warning('请填写 owner 与 repo')
@@ -109,16 +123,6 @@ export default function RepoSettings() {
       })
       setLoaded(true)
       setDirty(false)
-      // 生效情况（v8.5.0）：统计窗口内的任务量/节流次数/静默条数，
-      // 让「旋钮是否真的生效」可验证而不是只写在表单里。
-      const seq = ++effectSeq.current
-      api.statsOverview({ days: 30, platform: p, owner: o, repo: r })
-        .then((s) => {
-          if (seq === effectSeq.current) setEffect((s?.repos ?? [])[0] ?? null)
-        })
-        .catch(() => {
-          if (seq === effectSeq.current) setEffect(null)
-        })
     } catch (e: any) {
       // 404 = 无覆盖（全新仓库）：给默认值而非报错
       setState(DEFAULTS)
@@ -126,6 +130,7 @@ export default function RepoSettings() {
       setDirty(false)
       message.info('该仓库暂无自定义设置，当前为全局默认值')
     } finally {
+      loadEffect(p, o, r)
       setLoading(false)
     }
   }

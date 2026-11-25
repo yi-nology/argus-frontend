@@ -1,4 +1,4 @@
-import { Layout, Menu, Tag, Typography, Space, Button, Avatar, Dropdown } from 'antd'
+import { Menu, Tag, Typography, Space, Button, Avatar, Dropdown } from 'antd'
 import {
   ControlOutlined,
   DashboardOutlined,
@@ -19,8 +19,13 @@ import { useAuth } from '../auth/AuthContext'
 import { palette } from '../theme/theme'
 import type { PermissionBits } from '../api/client'
 
-const { Header, Sider, Content } = Layout
-
+/**
+ * 侧栏用固定列 + inline Menu，**不用 Layout.Sider**：
+ * antd 的 Sider 会通过 context 把 collapsed 传给 Menu（inlineCollapsed），
+ * 一旦 Sider 进入折叠态（响应式/历史会话状态），整个导航会塌成图标且
+ * 文字不可见——v8.6.4 曾用 flex 宽度兜底过一次，仍会复发。这里显式
+ * inlineCollapsed={false}，从根上没有折叠路径。
+ */
 interface NavItem {
   key: string
   icon: React.ReactNode
@@ -67,8 +72,8 @@ export default function AppLayout() {
   }).map((n) => ({ key: n.key, icon: n.icon, label: n.label, onClick: () => nav(n.key) }))
 
   return (
-    <Layout style={{ minHeight: '100vh', background: 'transparent' }}>
-      <Header
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+      <header
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -81,7 +86,6 @@ export default function AppLayout() {
           top: 0,
           zIndex: 20,
           height: 56,
-          lineHeight: '56px',
         }}
       >
         <Typography.Text strong style={{ fontSize: 17, letterSpacing: 0.4 }}>
@@ -119,35 +123,42 @@ export default function AppLayout() {
             </Avatar>
           </Dropdown>
         </Space>
-      </Header>
+      </header>
 
-      <Layout>
-        <Sider
-          width={200}
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        <aside
           style={{
+            width: 200,
+            minWidth: 200,
+            flex: '0 0 200px',
+            position: 'sticky',
+            top: 56,
+            alignSelf: 'flex-start',
+            height: 'calc(100vh - 56px)',
+            overflowY: 'auto',
             background: 'rgba(11,15,22,0.55)',
             borderRight: '1px solid rgba(148,163,184,0.1)',
             paddingTop: 12,
-            flex: '0 0 200px',
           }}
         >
           <Menu
             mode="inline"
+            inlineCollapsed={false}
             selectedKeys={[selectedKey(loc.pathname)]}
             items={items}
-            style={{ borderInlineEnd: 'none', background: 'transparent' }}
+            style={{ borderInlineEnd: 'none', background: 'transparent', width: '100%' }}
           />
           <div style={{ padding: 16 }}>
             <Button block type="primary" icon={<PlusOutlined />} onClick={() => nav('/tasks')}>
               新建审查
             </Button>
           </div>
-        </Sider>
+        </aside>
 
-        <Content style={{ minHeight: 360 }}>
+        <main style={{ flex: 1, minWidth: 0, minHeight: 360 }}>
           <Outlet />
-        </Content>
-      </Layout>
-    </Layout>
+        </main>
+      </div>
+    </div>
   )
 }

@@ -225,7 +225,7 @@ export default function Quality() {
                       </Button>
                     </Tooltip>
                     <Button size="small" icon={<ControlOutlined />}
-                      onClick={() => nav('/settings/repos')}>设置</Button>
+                      onClick={() => nav(`/settings/repos?platform=${encodeURIComponent(r.platform)}&owner=${encodeURIComponent(r.owner)}&repo=${encodeURIComponent(r.repo)}`)}>设置</Button>
                   </Space>
                 ),
               },

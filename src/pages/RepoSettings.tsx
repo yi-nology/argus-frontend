@@ -7,6 +7,7 @@ import {
   CommentOutlined, ControlOutlined, ReloadOutlined, SaveOutlined,
   ThunderboltOutlined, EyeOutlined, DeleteOutlined, InfoCircleOutlined, BarChartOutlined,
 } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import { api, type RepoSettingsValues } from '../api/client'
 import { PLATFORMS } from '../constants/platforms'
 
@@ -57,9 +58,10 @@ function previewText(s: FormState): string {
 
 export default function RepoSettings() {
   const { message } = App.useApp()
-  const [platform, setPlatform] = useState('gitlab')
-  const [owner, setOwner] = useState('')
-  const [repo, setRepo] = useState('')
+  const [params] = useSearchParams()
+  const [platform, setPlatform] = useState(params.get('platform') || 'gitlab')
+  const [owner, setOwner] = useState(params.get('owner') || '')
+  const [repo, setRepo] = useState(params.get('repo') || '')
   const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -127,6 +129,15 @@ export default function RepoSettings() {
       setLoading(false)
     }
   }
+
+  // 从质量运营/任务详情带 platform/owner/repo 跳转时自动加载一次。
+  const autoLoaded = useRef(false)
+  useEffect(() => {
+    if (autoLoaded.current) return
+    autoLoaded.current = true
+    if (owner && repo) load(platform, owner, repo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const save = async () => {
     setSaving(true)

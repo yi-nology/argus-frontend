@@ -1,7 +1,7 @@
 {
   "name": "argus-frontend",
   "private": true,
-  "version": "8.7.1",
+  "version": "8.7.2",
   "type": "module",
   "description": "Argus 审查工作台（TypeScript + Ant Design 6 + Ant Design X）——受控变更 · AI 问答 · 资格门",
   "scripts": {

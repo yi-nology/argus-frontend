@@ -71,17 +71,22 @@ export default function Findings() {
     }
   }
 
-  // 从任务详情跳转（带 platform/owner/repo 查询参数）时自动加载一次
-  const autoLoaded = useRef(false)
+  // 从任务详情/质量运营跳转（带 platform/owner/repo）自动加载；同路由换参数也重跑。
+  const deepLink = params.toString()
+  const lastDeepLink = useRef('')
   useEffect(() => {
-    if (autoLoaded.current) return
-    autoLoaded.current = true
+    if (!deepLink || deepLink === lastDeepLink.current) return
+    lastDeepLink.current = deepLink
     const p = params.get('platform')
     const o = params.get('owner')
     const r = params.get('repo')
-    if (p && o && r) void load({ platform: p, owner: o, repo: r }, '')
+    if (p && o && r) {
+      const c = { platform: p, owner: o, repo: r }
+      setCoords(c)
+      void load(c, '')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [deepLink])
 
   // 切换状态过滤：已加载过仓库则立即重查（未加载时只更新选择）
   useEffect(() => {

@@ -99,20 +99,16 @@ export default function FixPush() {
     void doPreview(query())
   }
 
-  // 深链带入坐标时自动预览；同时载入最近任务供一键选择。
-  const autoRan = useRef(false)
+  // 最近任务清单（供仍计算法用；失败不阻断手填坐标）。
   useEffect(() => {
-    if (autoRan.current) return
-    autoRan.current = true
-    const p = params.get('platform')
-    const o = params.get('owner')
-    const r = params.get('repo')
-    const n = params.get('number')
-    if (p && o && r && n) void doPreview({ platform: p, owner: o, repo: r, number: n })
     api.listTasks({ limit: 30 })
       .then((rows) => {
         const list = rows.filter((t) => !!t.head_sha && !!t.id)
         setTasks(list)
+        const p = params.get('platform')
+        const o = params.get('owner')
+        const r = params.get('repo')
+        const n = params.get('number')
         const match = list.find((t) =>
           t.platform === p && t.owner === o &&
           t.repo === r && String(t.number) === n)
@@ -121,6 +117,24 @@ export default function FixPush() {
       .catch(() => {/* 任务清单失败不阻断手填 */})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 深链带入坐标时自动预览；同路由换参数也重跑。
+  const deepLink = params.toString()
+  const lastDeepLink = useRef('')
+  useEffect(() => {
+    if (!deepLink || deepLink === lastDeepLink.current) return
+    lastDeepLink.current = deepLink
+    const p = params.get('platform')
+    const o = params.get('owner')
+    const r = params.get('repo')
+    const n = params.get('number')
+    if (p && o && r && n) {
+      setCoords({ platform: p, owner: o, repo: r })
+      setNumber(Number(n) || null)
+      void doPreview({ platform: p, owner: o, repo: r, number: n })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLink])
 
   const pickTask = (t: TaskRow) => {
     const c: Coords = { platform: t.platform || '', owner: t.owner || '', repo: t.repo || '' }

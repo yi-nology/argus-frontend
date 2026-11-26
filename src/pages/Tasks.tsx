@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
 import RepoPicker, { useConsoleOptions, loadConsoleOptions, type Coords } from '../components/RepoPicker'
+import RecentTaskPicker from '../components/RecentTaskPicker'
 import {
   VERDICT_COLOR, VERDICT_LABELS, fmtTime, kindLabel, statusLabel,
 } from '../constants/vocab'
@@ -59,6 +60,13 @@ export default function Tasks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status])
 
+  /** 最近任务一键载入：坐标 + PR 号 + 任务类型（kind 按 canonical 词表名反查 IDL 值）。 */
+  const pickTask = (t: TaskRow) => {
+    setCoords({ platform: t.platform || '', owner: t.owner || '', repo: t.repo || '' })
+    const kind = (opts?.kinds ?? []).find((k) => k.name === t.kind)?.value
+    form.setFieldsValue({ number: Number(t.number) || undefined, kind: kind ?? form.getFieldValue('kind') })
+  }
+
   const onCreate = async () => {
     const c = activeCoords
     if (!c.platform || !c.owner.trim() || !c.repo.trim()) {
@@ -68,17 +76,22 @@ export default function Tasks() {
     const v = form.getFieldsValue()
     setCreating(true)
     try {
-      await api.createTask({
+      const res = await api.createTask({
         platform: c.platform,
         owner: c.owner.trim(),
         repo: c.repo.trim(),
         number: String(v.number),
         kind: v.kind,
       })
-      message.success('审查任务已创建')
+      if (res?.duplicated) {
+        message.info('该 PR 已有在飞任务，返回的是原任务')
+      } else {
+        message.success('审查任务已创建')
+      }
       form.resetFields(['number'])
       void load()
       void loadConsoleOptions(true) // 新仓库登记后刷新坐标选项
+      if (res?.taskId) nav(`/tasks/${res.taskId}`)
     } catch (e: any) {
       message.error(e?.message || '创建失败')
     } finally {
@@ -96,6 +109,13 @@ export default function Tasks() {
       </Typography.Paragraph>
 
       <Card className="glass" title="发起审查" style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 12 }}>
+          <RecentTaskPicker
+            onPick={pickTask}
+            placeholder="从最近任务载入坐标与类型（用于重试/查看历史）"
+            style={{ width: '100%', maxWidth: 560 }}
+          />
+        </div>
         <Form form={form} layout="inline" onFinish={onCreate} style={{ rowGap: 12 }}>
           <Form.Item label="仓库">
             <RepoPicker value={activeCoords} onChange={setCoords} />
@@ -125,7 +145,7 @@ export default function Tasks() {
               onChange={(v) => setStatus(v as string)}
               options={statusOptions}
             />
-            <Button size="small" icon={<ReloadOutlined />} onClick={load} />
+            <Button size="small" icon={<ReloadOutlined />} onClick={load} aria-label="刷新任务列表" />
           </Space>
         }
       >

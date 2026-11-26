@@ -252,7 +252,11 @@ export const api = {
     owner: string
     repo: string
     number: string
-  }) => request<any>('/tasks', { method: 'POST', body: payload }),
+  }) =>
+    request<{ taskId?: string; status?: string; duplicated?: boolean }>('/tasks', {
+      method: 'POST',
+      body: payload,
+    }),
   statsOverview: (query?: { days?: number; platform?: string; owner?: string; repo?: string }) =>
     request<any>('/stats/overview', { query: query as any }),
   usageMonthly: () => request<any>('/usage/monthly'),

@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   App, Button, Card, Col, Empty, Progress, Row, Space, Statistic, Table, Tag, Tooltip, Typography,
 } from 'antd'
-import {
-  BarChartOutlined, BugOutlined, ControlOutlined, ReloadOutlined, ThunderboltOutlined,
-} from '@ant-design/icons'
+import { BugOutlined, ControlOutlined, ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { VERDICT_LABELS } from '../constants/vocab'
@@ -266,10 +264,6 @@ export default function Quality() {
         )}
       </Card>
 
-      <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-        <BarChartOutlined style={{ marginRight: 6 }} />
-        服务端聚合报表可在部署环境通过 /console 页面查看（需管理员令牌）。
-      </Typography.Text>
     </div>
   )
 }

@@ -90,20 +90,24 @@ export default function Approvals() {
     void load(c, n)
   }
 
-  // 深链自动执行（与 FixPush 页同语义）：带完整坐标即自动查询一次。
-  const autoRan = useRef(false)
+  // 深链自动执行（与 FixPush 页同语义）：带完整坐标即自动查询；同路由换参数也重跑。
+  const deepLink = params.toString()
+  const lastDeepLink = useRef('')
   useEffect(() => {
-    if (autoRan.current) return
-    autoRan.current = true
+    if (!deepLink || deepLink === lastDeepLink.current) return
+    lastDeepLink.current = deepLink
     const p = params.get('platform')
     const o = params.get('owner')
     const r = params.get('repo')
     const n = params.get('number')
     if (p && o && r && n) {
-      void load({ platform: p, owner: o, repo: r }, Number(n))
+      const c = { platform: p, owner: o, repo: r }
+      setCoords(c)
+      setNumber(Number(n) || null)
+      void load(c, Number(n) || null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [deepLink])
 
   return (
     <div className="page">

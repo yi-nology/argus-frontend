@@ -60,7 +60,7 @@ function previewText(s: FormState): string {
 export default function RepoSettings() {
   const { message } = App.useApp()
   const [params] = useSearchParams()
-  const [platform, setPlatform] = useState(params.get('platform') || 'gitlab')
+  const [platform, setPlatform] = useState(params.get('platform') || '')
   const [owner, setOwner] = useState(params.get('owner') || '')
   const [repo, setRepo] = useState(params.get('repo') || '')
   const [loaded, setLoaded] = useState(false)
@@ -167,14 +167,23 @@ export default function RepoSettings() {
     }
   }
 
-  // 从质量运营/任务详情带 platform/owner/repo 跳转时自动加载一次。
-  const autoLoaded = useRef(false)
+  // 从质量运营/任务详情带 platform/owner/repo 跳转时自动加载；同路由换参数也重跑。
+  const deepLink = params.toString()
+  const lastDeepLink = useRef('')
   useEffect(() => {
-    if (autoLoaded.current) return
-    autoLoaded.current = true
-    if (owner && repo) load(platform, owner, repo)
+    if (!deepLink || deepLink === lastDeepLink.current) return
+    lastDeepLink.current = deepLink
+    const p = params.get('platform') || ''
+    const o = params.get('owner')
+    const r = params.get('repo')
+    if (o && r) {
+      if (p) setPlatform(p)
+      setOwner(o)
+      setRepo(r)
+      void load(p || platform, o, r)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [deepLink])
 
   const save = async () => {
     setSaving(true)

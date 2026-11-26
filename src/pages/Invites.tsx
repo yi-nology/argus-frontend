@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { Card, Form, Input, Select, Space, Tag, Typography, App, Button } from 'antd'
+import { useEffect, useState } from 'react'
+import { App, Button, Card, Form, Input, Select, Space, Table, Tag, Typography } from 'antd'
 import { UserAddOutlined, CopyOutlined, LinkOutlined } from '@ant-design/icons'
-import { api } from '../api/client'
+import { api, type MemberRow } from '../api/client'
 import { fmtTime } from '../constants/vocab'
 import { useAuth } from '../auth/AuthContext'
 
@@ -20,14 +20,45 @@ const TTL_OPTIONS = [
   { value: 720, label: '30 天' },
 ]
 
+/** 角色展示文案（值域以 storage 角色常量为准，此处仅展示）。 */
+const ROLE_LABEL: Record<string, string> = {
+  viewer: '只读',
+  auditor: '审计',
+  operator: '可建任务',
+  maintainer: '审批 / 合并',
+  admin: '管理员',
+}
+
 export default function Invites() {
   const { can, user } = useAuth()
   const { message } = App.useApp()
   const [result, setResult] = useState<any>(null)
   const [busy, setBusy] = useState(false)
   const [form] = Form.useForm()
+  const [members, setMembers] = useState<MemberRow[]>([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [membersErr, setMembersErr] = useState('')
 
   const allowed = !user?.permissions || can('manage_membership')
+
+  const loadMembers = async () => {
+    setMembersLoading(true)
+    setMembersErr('')
+    try {
+      const res = await api.members()
+      setMembers(res?.members ?? [])
+    } catch (e: any) {
+      setMembers([])
+      setMembersErr(e?.message || '成员清单加载失败')
+    } finally {
+      setMembersLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (allowed) void loadMembers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowed])
 
   const onCreate = async (v: any) => {
     setBusy(true)
@@ -87,6 +118,35 @@ export default function Invites() {
               生成邀请链接
             </Button>
           </Form>
+        </Card>
+      )}
+
+      {allowed && (
+        <Card
+          className="glass"
+          style={{ marginTop: 16 }}
+          title={`现有成员（${members.length}）`}
+          extra={<Button size="small" onClick={loadMembers} loading={membersLoading}>刷新</Button>}
+        >
+          {membersErr ? (
+            <Typography.Text type="danger">{membersErr}</Typography.Text>
+          ) : (
+            <Table<MemberRow>
+              size="small"
+              rowKey="username"
+              loading={membersLoading}
+              dataSource={members}
+              pagination={false}
+              columns={[
+                { title: '用户名', dataIndex: 'username', render: (v: string) => <span className="mono">{v}</span> },
+                {
+                  title: '角色', dataIndex: 'role', width: 160,
+                  render: (v: string) => <Tag color={v === 'admin' ? 'red' : v === 'maintainer' ? 'blue' : 'default'}>{ROLE_LABEL[v] || v}<span style={{ opacity: 0.6 }}> · {v}</span></Tag>,
+                },
+                { title: '创建时间', dataIndex: 'created_at', width: 160, render: (v: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
+              ]}
+            />
+          )}
         </Card>
       )}
 

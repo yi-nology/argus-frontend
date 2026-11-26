@@ -142,6 +142,19 @@ export interface FixTicket {
   decided_at?: number
 }
 
+/** 实例成员（GET /auth/members，v8.8.0；admin 面，无凭证字段）。 */
+export interface MemberRow {
+  username: string
+  role: string
+  created_at?: number
+}
+
+/** 仓库分支清单（GET /repos/branches，v8.8.0；平台 SDK 分支面）。 */
+export interface RepoBranches {
+  default_branch?: string
+  branches: string[]
+}
+
 /** 控制台选项聚合面（GET /console/options，v8.7.0）：下拉单源数据。 */
 export interface ConsoleOptions {
   platforms: string[]
@@ -262,6 +275,11 @@ export const api = {
   usageMonthly: () => request<any>('/usage/monthly'),
   /** 控制台下拉选项单源（platforms/kinds/statuses/repos；v8.7.0）。 */
   consoleOptions: () => request<ConsoleOptions>('/console/options'),
+  /** 实例成员清单（admin；v8.8.0）。 */
+  members: () => request<{ members?: MemberRow[] }>('/auth/members'),
+  /** 仓库分支清单 + 默认分支（v8.8.0）。 */
+  repoBranches: (query: { platform: string; owner: string; repo: string }) =>
+    request<RepoBranches>('/repos/branches', { query: query as any }),
 
   listFixApprovals: (query: { platform: string; owner: string; repo: string; number: string }) =>
     request<{ tickets: FixTicket[]; pending_count?: number; head_sha?: string }>('/fix-approvals', {

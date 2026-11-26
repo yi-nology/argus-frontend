@@ -21,6 +21,22 @@ const REPORT_TEMPLATES = [
   { label: 'minimal（极简）', value: 'minimal' },
 ]
 
+/** 预算常用值预设（v8.8.0）：下拉一键填数，InputNumber 仍保留自由输入。 */
+const TOKEN_BUDGET_PRESETS = [
+  { label: '跟随全局', value: 0 },
+  { label: '10 万', value: 100_000 },
+  { label: '50 万', value: 500_000 },
+  { label: '100 万', value: 1_000_000 },
+  { label: '500 万', value: 5_000_000 },
+]
+
+const DIFF_CAP_PRESETS = [
+  { label: '跟随全局', value: 0 },
+  { label: '20 万字符', value: 200_000 },
+  { label: '50 万字符', value: 500_000 },
+  { label: '100 万字符', value: 1_000_000 },
+]
+
 interface FormState {
   throttle: number
   cap: number
@@ -74,6 +90,11 @@ export default function RepoSettings() {
   const [activeRepos, setActiveRepos] = useState<{ platform: string; owner: string; repo: string }[]>([])
   /** 近 30 天生效情况（stats/overview 按仓行；null = 无任务）。 */
   const [effect, setEffect] = useState<any>(null)
+  /** 仓库分支面（v8.8.0）：默认分支 + 分支速查（平台 SDK BranchManager）。 */
+  const [repoInfo, setRepoInfo] = useState<{ default_branch?: string; branches: string[] } | null>(null)
+  const [repoInfoErr, setRepoInfoErr] = useState('')
+  const [repoInfoLoading, setRepoInfoLoading] = useState(false)
+  const [branchPicked, setBranchPicked] = useState<string>('')
   const effectSeq = useRef(0)
 
   const patch = (p: Partial<FormState>) => {
@@ -126,6 +147,22 @@ export default function RepoSettings() {
       })
   }
 
+  /** 分支面加载（best-effort：不可用不影响设置编辑主流程）。 */
+  const loadRepoInfo = async (p: string, o: string, r: string) => {
+    setRepoInfoLoading(true)
+    setRepoInfoErr('')
+    setBranchPicked('')
+    try {
+      const res = await api.repoBranches({ platform: p, owner: o, repo: r })
+      setRepoInfo({ default_branch: res?.default_branch || '', branches: res?.branches ?? [] })
+    } catch (e: any) {
+      setRepoInfo(null)
+      setRepoInfoErr(e?.message || '分支清单加载失败')
+    } finally {
+      setRepoInfoLoading(false)
+    }
+  }
+
   const load = async (p = platform, o = owner, r = repo) => {
     if (!o || !r) {
       message.warning('请完整选择 owner 与仓库')
@@ -163,6 +200,7 @@ export default function RepoSettings() {
       }
     } finally {
       loadEffect(p, o, r)
+      void loadRepoInfo(p, o, r)
       setLoading(false)
     }
   }
@@ -305,6 +343,55 @@ export default function RepoSettings() {
               )
             })}
           </Space>
+        </Card>
+      )}
+
+      {loaded && (
+        <Card
+          className="glass"
+          size="small"
+          style={{ marginBottom: 16 }}
+          title="仓库信息"
+          loading={repoInfoLoading}
+          extra={<Button size="small" onClick={() => loadRepoInfo(platform, owner, repo)}>刷新分支</Button>}
+        >
+          {repoInfoErr ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              分支面不可用：{repoInfoErr}（不影响下方设置编辑）
+            </Typography.Text>
+          ) : (
+            <Space wrap size={16} align="center">
+              <span>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>默认分支（.reviewagents.yaml 配置来源）</Typography.Text>
+                <div>
+                  <Typography.Text className="mono" copyable={!!repoInfo?.default_branch}>
+                    {repoInfo?.default_branch || '—'}
+                  </Typography.Text>
+                </div>
+              </span>
+              <span style={{ minWidth: 260 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  分支速查（共 {repoInfo?.branches.length ?? 0} 个）
+                </Typography.Text>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="选择分支名"
+                    style={{ width: 220 }}
+                    value={branchPicked || undefined}
+                    onChange={(v) => setBranchPicked(v || '')}
+                    options={(repoInfo?.branches ?? []).map((b) => ({ value: b, label: b }))}
+                  />
+                  {branchPicked && (
+                    <Typography.Text className="mono" copyable={{ text: branchPicked }} style={{ fontSize: 12 }}>
+                      {branchPicked}
+                    </Typography.Text>
+                  )}
+                </div>
+              </span>
+            </Space>
+          )}
         </Card>
       )}
 
@@ -459,30 +546,57 @@ export default function RepoSettings() {
             <Row gutter={[24, 16]}>
               <Col xs={24} md={8}>
                 <Typography.Text strong>月度 token 预算</Typography.Text>
-                <InputNumber
-                  min={1} max={1_000_000_000} value={state.monthlyBudget}
-                  onChange={(v) => patch({ monthlyBudget: v ?? undefined })}
-                  placeholder="继承全局"
-                  style={{ width: '100%', marginTop: 8 }}
-                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <InputNumber
+                    min={1} max={1_000_000_000} value={state.monthlyBudget}
+                    onChange={(v) => patch({ monthlyBudget: v ?? undefined })}
+                    placeholder="继承全局"
+                    style={{ flex: 1 }}
+                  />
+                  <Select
+                    style={{ width: 118 }}
+                    placeholder="常用值"
+                    options={TOKEN_BUDGET_PRESETS}
+                    value={undefined}
+                    onChange={(v: number) => patch({ monthlyBudget: v > 0 ? v : undefined })}
+                  />
+                </div>
               </Col>
               <Col xs={24} md={8}>
                 <Typography.Text strong>单任务 token 预算</Typography.Text>
-                <InputNumber
-                  min={1} max={1_000_000_000} value={state.taskBudget}
-                  onChange={(v) => patch({ taskBudget: v ?? undefined })}
-                  placeholder="继承全局"
-                  style={{ width: '100%', marginTop: 8 }}
-                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <InputNumber
+                    min={1} max={1_000_000_000} value={state.taskBudget}
+                    onChange={(v) => patch({ taskBudget: v ?? undefined })}
+                    placeholder="继承全局"
+                    style={{ flex: 1 }}
+                  />
+                  <Select
+                    style={{ width: 118 }}
+                    placeholder="常用值"
+                    options={TOKEN_BUDGET_PRESETS}
+                    value={undefined}
+                    onChange={(v: number) => patch({ taskBudget: v > 0 ? v : undefined })}
+                  />
+                </div>
               </Col>
               <Col xs={24} md={8}>
                 <Typography.Text strong>diff 字符上限</Typography.Text>
-                <InputNumber
-                  min={1} max={1_000_000_000} value={state.maxDiffChars}
-                  onChange={(v) => patch({ maxDiffChars: v ?? undefined })}
-                  placeholder="继承全局"
-                  style={{ width: '100%', marginTop: 8 }}
-                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <InputNumber
+                    min={1} max={1_000_000_000} value={state.maxDiffChars}
+                    onChange={(v) => patch({ maxDiffChars: v ?? undefined })}
+                    placeholder="继承全局"
+                    style={{ flex: 1 }}
+                  />
+                  <Select
+                    style={{ width: 118 }}
+                    placeholder="常用值"
+                    options={DIFF_CAP_PRESETS}
+                    value={undefined}
+                    onChange={(v: number) => patch({ maxDiffChars: v > 0 ? v : undefined })}
+                  />
+                </div>
               </Col>
             </Row>
           </Card>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Alert, App, Button, Card, Col, Descriptions, Input, InputNumber, Popconfirm, Row,
+  Alert, App, Button, Card, Col, Descriptions, Input, Popconfirm, Row,
   Space, Spin, Statistic, Tag, Typography,
 } from 'antd'
 import {
@@ -11,6 +11,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
 import RepoPicker, { useConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
+import PRPicker from '../components/PRPicker'
 import { useAuth } from '../auth/AuthContext'
 
 interface FixPushPreview {
@@ -231,14 +232,12 @@ export default function FixPush() {
           />
           <Space wrap size={10}>
             <RepoPicker value={coords} onChange={setCoords} disabled={!canDecide} />
-            <InputNumber
-              placeholder="PR #"
-              style={{ width: 110 }}
-              min={1}
+            <PRPicker
+              coords={coords}
               value={number}
+              style={{ width: 170 }}
               disabled={!canDecide}
               onChange={(v) => setNumber(v ?? null)}
-              onPressEnter={preview}
             />
             <Button
               type="primary"

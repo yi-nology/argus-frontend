@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Alert, App, Button, Card, Input, InputNumber, Modal, Popconfirm, Space, Table, Tag, Typography,
+  Alert, App, Button, Card, Input, Modal, Popconfirm, Space, Table, Tag, Typography,
 } from 'antd'
 import { CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
@@ -8,6 +8,7 @@ import { api, type FixTicket, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
 import RepoPicker, { useConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
+import PRPicker from '../components/PRPicker'
 import { fmtTime } from '../constants/vocab'
 import { useAuth } from '../auth/AuthContext'
 
@@ -142,14 +143,12 @@ export default function Approvals() {
           <RecentTaskPicker onPick={pickTask} disabled={!canDecide} />
           <Space wrap size={10}>
             <RepoPicker value={coords} onChange={setCoords} disabled={!canDecide} />
-            <InputNumber
-              placeholder="PR #"
-              style={{ width: 110 }}
-              min={1}
+            <PRPicker
+              coords={coords}
               value={number}
+              style={{ width: 170 }}
               disabled={!canDecide}
               onChange={(v) => setNumber(v ?? null)}
-              onPressEnter={() => load()}
             />
             <Button
               type="primary"

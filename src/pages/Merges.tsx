@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Alert, App, Button, Card, Col, InputNumber, Popconfirm, Row, Space, Statistic, Tag, Typography,
+  Alert, App, Button, Card, Col, Popconfirm, Row, Space, Statistic, Tag, Typography,
 } from 'antd'
 import {
   CheckCircleOutlined, CloseCircleOutlined, MergeCellsOutlined, SearchOutlined, SyncOutlined,
@@ -9,6 +9,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api, type MergeEligibility, type TaskRow } from '../api/client'
 import RepoPicker, { useConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
+import PRPicker from '../components/PRPicker'
 import { useAuth } from '../auth/AuthContext'
 
 export default function Merges() {
@@ -172,14 +173,12 @@ export default function Merges() {
           <RecentTaskPicker onPick={pickTask} disabled={!canDecide} />
           <Space wrap size={10}>
             <RepoPicker value={coords} onChange={setCoords} disabled={!canDecide} />
-            <InputNumber
-              placeholder="PR #"
-              style={{ width: 110 }}
-              min={1}
+            <PRPicker
+              coords={coords}
               value={number}
+              style={{ width: 170 }}
               disabled={!canDecide}
               onChange={(v) => setNumber(v ?? null)}
-              onPressEnter={() => check()}
             />
             <Button
               type="primary"

@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { Bubble, Sender, Prompts } from '@ant-design/x'
 import { XMarkdown } from '@ant-design/x-markdown'
-import { App, Avatar, Button, Card, InputNumber, Popconfirm, Space, Typography } from 'antd'
+import { App, Avatar, Button, Card, Popconfirm, Space, Typography } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { api, type TaskRow } from '../api/client'
 import RepoPicker, { useConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
+import PRPicker from '../components/PRPicker'
 import { useAuth } from '../auth/AuthContext'
 
 type Msg = { id: string; role: 'user' | 'assistant'; content: string }
@@ -113,11 +114,10 @@ export default function Assistant() {
           <RecentTaskPicker onPick={pickTask} placeholder="从最近任务载入目标" style={{ width: '100%', maxWidth: 560 }} />
           <Space wrap size={10}>
             <RepoPicker value={coords} onChange={setCoords} />
-            <InputNumber
-              placeholder="PR #"
-              style={{ width: 110 }}
-              min={1}
+            <PRPicker
+              coords={coords}
               value={number}
+              style={{ width: 170 }}
               onChange={(v) => setNumber(v ?? null)}
             />
           </Space>

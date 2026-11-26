@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  App, Button, Card, Form, InputNumber, Segmented, Select, Space, Table, Tag, Typography,
+  App, Button, Card, Form, Segmented, Select, Space, Table, Tag, Typography,
 } from 'antd'
 import { PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +8,7 @@ import { api, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
 import RepoPicker, { useConsoleOptions, loadConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
+import PRPicker from '../components/PRPicker'
 import {
   VERDICT_COLOR, VERDICT_LABELS, fmtTime, kindLabel, statusLabel,
 } from '../constants/vocab'
@@ -120,8 +121,8 @@ export default function Tasks() {
           <Form.Item label="仓库">
             <RepoPicker value={activeCoords} onChange={setCoords} />
           </Form.Item>
-          <Form.Item name="number" rules={[{ required: true, message: '请填 PR 号' }]}>
-            <InputNumber placeholder="PR #" style={{ width: 110 }} min={1} />
+          <Form.Item name="number" rules={[{ required: true, message: '请选择或填写 PR 号' }]}>
+            <PRPicker coords={activeCoords} style={{ width: 170 }} />
           </Form.Item>
           <Form.Item name="kind" initialValue={1} style={{ minWidth: 150 }}>
             <Select placeholder="任务类型" options={kindOptions} loading={!opts} />

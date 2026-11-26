@@ -149,6 +149,19 @@ export interface MemberRow {
   created_at?: number
 }
 
+/** 仓库 PR/MR 行（GET /repos/crs，v8.8.1；平台 ChangeRequest 面）。 */
+export interface RepoCR {
+  number: string
+  title: string
+  state?: string
+  draft?: boolean
+  source_branch?: string
+  target_branch?: string
+  author?: string
+  head_sha?: string
+  web_url?: string
+}
+
 /** 仓库分支清单（GET /repos/branches，v8.8.0；平台 SDK 分支面）。 */
 export interface RepoBranches {
   default_branch?: string
@@ -280,6 +293,9 @@ export const api = {
   /** 仓库分支清单 + 默认分支（v8.8.0）。 */
   repoBranches: (query: { platform: string; owner: string; repo: string }) =>
     request<RepoBranches>('/repos/branches', { query: query as any }),
+  /** 仓库 PR/MR 列表（v8.8.1；默认 opened，供 PR 号下拉）。 */
+  repoCRs: (query: { platform: string; owner: string; repo: string; state?: string; limit?: number }) =>
+    request<{ items?: RepoCR[] }>('/repos/crs', { query: query as any }),
 
   listFixApprovals: (query: { platform: string; owner: string; repo: string; number: string }) =>
     request<{ tickets: FixTicket[]; pending_count?: number; head_sha?: string }>('/fix-approvals', {

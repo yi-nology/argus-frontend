@@ -6,7 +6,7 @@ import {
   SafetyCertificateOutlined, SendOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, type TaskRow } from '../api/client'
+import { api, subscribeEvents, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
 import { VERDICT_COLOR, VERDICT_LABELS, fmtTime, kindLabel, statusLabel } from '../constants/vocab'
 
@@ -31,6 +31,22 @@ export default function TaskDetail() {
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId])
+
+  // SSE 实时：本任务事件（running/finished/stage…）到达后防抖重载详情与阶段。
+  useEffect(() => {
+    if (!taskId) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const stop = subscribeEvents((e) => {
+      if (e.task_id !== taskId) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => load(), 800)
+    })
+    return () => {
+      stop()
+      if (timer) clearTimeout(timer)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId])
 

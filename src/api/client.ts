@@ -168,6 +168,57 @@ export interface RepoBranches {
   branches: string[]
 }
 
+/** 邀请历史行（GET /auth/invites/history，v8.8.2；无 token 字段）。 */
+export interface InviteRow {
+  invite_id: string
+  role: string
+  status: string
+  username?: string
+  created_by?: string
+  created_at?: number
+  expires_at?: number
+  used_at?: number
+}
+
+/** 插件清单行（GET /agents；kind/protocol 为 IDL 枚举数值）。 */
+export interface AgentManifest {
+  name: string
+  kind?: number
+  skills?: string[]
+  enabled: boolean
+  cost?: string
+  timeoutMs?: number
+  version?: string
+  protocol?: number
+  needs?: string[]
+  triggerPaths?: string[]
+  triggerLabels?: string[]
+}
+
+/** .reviewagents.yaml 生效视图（三参全传时返回）。 */
+export interface RepoConfigView {
+  loaded: boolean
+  use?: string[]
+  disable?: string[]
+  routing?: { paths?: string[]; labels?: string[]; use?: string[] }[]
+  warnings?: string[]
+  plugins?: { name: string; repoEffect?: string; routedBy?: string; note?: string }[]
+}
+
+/** 任务进度事件（SSE /events data 载荷；字段与服务端 progress.Event 对账）。 */
+export interface TaskEvent {
+  type?: string
+  task_id?: string
+  status?: string
+  verdict?: string
+  stage?: string
+  platform?: string
+  owner?: string
+  repo?: string
+  number?: string
+  at?: string
+}
+
 /** 控制台选项聚合面（GET /console/options，v8.7.0）：下拉单源数据。 */
 export interface ConsoleOptions {
   platforms: string[]
@@ -262,7 +313,16 @@ export const api = {
       body: payload,
     }),
 
-  listTasks: async (query?: { status?: string; limit?: number }) => {
+  listTasks: async (query?: {
+    status?: string
+    limit?: number
+    /** v8.8.2 控制台筛选面：仓库三元组 / 类型 / 关键词。 */
+    platform?: string
+    owner?: string
+    repo?: string
+    kind?: string
+    q?: string
+  }) => {
     const res = await request<{ tasks?: TaskRow[] } | TaskRow[]>('/tasks', { query: query as any })
     const arr = Array.isArray(res) ? res : (res?.tasks ?? [])
     return arr.map(normalizeTask)
@@ -290,6 +350,13 @@ export const api = {
   consoleOptions: () => request<ConsoleOptions>('/console/options'),
   /** 实例成员清单（admin；v8.8.0）。 */
   members: () => request<{ members?: MemberRow[] }>('/auth/members'),
+  /** 邀请历史（admin；v8.8.2）。 */
+  inviteHistory: () => request<{ invites?: InviteRow[] }>('/auth/invites/history'),
+  /** 插件清单（可选仓库三元组；三参全传附 .reviewagents.yaml 生效视图）。 */
+  listAgents: (query?: { platform?: string; owner?: string; repo?: string }) =>
+    request<{ agents?: AgentManifest[]; repo_config?: RepoConfigView }>('/agents', {
+      query: query as any,
+    }),
   /** 仓库分支清单 + 默认分支（v8.8.0）。 */
   repoBranches: (query: { platform: string; owner: string; repo: string }) =>
     request<RepoBranches>('/repos/branches', { query: query as any }),
@@ -427,4 +494,53 @@ export interface RepoSettingRow {
   settings_json?: string
   updated_by?: string
   updated_at?: string
+}
+
+/**
+ * subscribeEvents —— /events SSE 订阅（v8.8.2 控制台实时刷新）。
+ *
+ * EventSource 不能带 Authorization 头，这里用 fetch + ReadableStream 手工分帧
+ * （event:/data: 行，空行分帧；": " 注释保活帧忽略）。返回退订函数（abort）。
+ * 连接异常静默结束——页面已有手动刷新兜底，不做重试风暴。
+ */
+export function subscribeEvents(onEvent: (e: TaskEvent) => void): () => void {
+  const ctrl = new AbortController()
+  const run = async () => {
+    try {
+      const headers: Record<string, string> = { Accept: 'text/event-stream' }
+      const tok = getToken()
+      if (tok) headers.Authorization = `Bearer ${tok}`
+      const res = await fetch(`${API_BASE}/events`, { headers, signal: ctrl.signal })
+      if (!res.ok || !res.body) return
+      const reader = res.body.getReader()
+      const dec = new TextDecoder()
+      let buf = ''
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += dec.decode(value, { stream: true })
+        let idx = buf.indexOf('\n\n')
+        while (idx >= 0) {
+          const frame = buf.slice(0, idx)
+          buf = buf.slice(idx + 2)
+          let data = ''
+          for (const line of frame.split('\n')) {
+            if (line.startsWith('data:')) data += line.slice(5).trim()
+          }
+          if (data) {
+            try {
+              onEvent(JSON.parse(data) as TaskEvent)
+            } catch {
+              /* 非 JSON 帧（保活等）忽略 */
+            }
+          }
+          idx = buf.indexOf('\n\n')
+        }
+      }
+    } catch {
+      /* abort / 网络中断：静默 */
+    }
+  }
+  void run()
+  return () => ctrl.abort()
 }

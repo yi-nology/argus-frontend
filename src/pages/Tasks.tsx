@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  App, Button, Card, Form, Segmented, Select, Space, Table, Tag, Typography,
+  App, Button, Card, Form, Input, Segmented, Select, Space, Table, Tag, Typography,
 } from 'antd'
 import { PlayCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { api, type TaskRow } from '../api/client'
+import { api, subscribeEvents, type TaskRow } from '../api/client'
 import { StatusDot } from '../components/Widgets'
 import RepoPicker, { useConsoleOptions, loadConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
@@ -21,6 +21,10 @@ export default function Tasks() {
   const opts = useConsoleOptions()
   const [list, setList] = useState<TaskRow[]>([])
   const [status, setStatus] = useState<string>('')
+  const [repoFilter, setRepoFilter] = useState<string>('')
+  const [kindFilter, setKindFilter] = useState<string>('')
+  const [kw, setKw] = useState('')
+  const [q, setQ] = useState('')
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form] = Form.useForm()
@@ -44,10 +48,31 @@ export default function Tasks() {
     value: k.value,
   }))
 
+  /** 仓库筛选选项（/console/options 登记面，值=platform/owner/repo）。 */
+  const repoFilterOptions = (opts?.repos ?? []).map((r) => ({
+    label: `${r.platform}/${r.owner}/${r.repo}`,
+    value: `${r.platform}/${r.owner}/${r.repo}`,
+  }))
+
+  /** 类型筛选选项（词表名，供 kind 查询参数）。 */
+  const kindFilterOptions = (opts?.kinds ?? []).map((k) => ({
+    label: kindLabel(k.name),
+    value: k.name,
+  }))
+
   const load = async () => {
     setLoading(true)
     try {
-      const res = await api.listTasks({ status: status || undefined, limit: 50 })
+      const rp = repoFilter ? repoFilter.split('/') : []
+      const res = await api.listTasks({
+        status: status || undefined,
+        limit: 50,
+        platform: rp[0] || undefined,
+        owner: rp[1] || undefined,
+        repo: rp.length > 2 ? rp.slice(2).join('/') : undefined,
+        kind: kindFilter || undefined,
+        q: q || undefined,
+      })
       setList(Array.isArray(res) ? res : ((res as any).tasks ?? []))
     } catch (e: any) {
       message.error(e?.message || '加载失败')
@@ -56,10 +81,29 @@ export default function Tasks() {
     }
   }
 
+  /** SSE 回调晚于首次渲染执行：必须经 ref 取最新 load（否则带旧筛选闭包刷列表）。 */
+  const loadRef = useRef(load)
+  loadRef.current = load
+
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status])
+  }, [status, repoFilter, kindFilter, q])
+
+  // SSE 实时：任务事件（created/running/finished）到达后防抖刷新列表。
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const stop = subscribeEvents((e) => {
+      if (!e.type || !e.type.startsWith('task.')) return
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => void loadRef.current(), 800)
+    })
+    return () => {
+      stop()
+      if (timer) clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /** 最近任务一键载入：坐标 + PR 号 + 任务类型（kind 按 canonical 词表名反查 IDL 值）。 */
   const pickTask = (t: TaskRow) => {
@@ -106,7 +150,7 @@ export default function Tasks() {
         审查任务
       </Typography.Title>
       <Typography.Paragraph className="page-sub">
-        创建并跟踪代码审查任务；webhook 与手动创建同语义，同一 head 自动去重。
+        创建并跟踪代码审查任务；webhook 与手动创建同语义，同一 head 自动去重。任务状态经 SSE 实时刷新。
       </Typography.Paragraph>
 
       <Card className="glass" title="发起审查" style={{ marginBottom: 18 }}>
@@ -150,6 +194,33 @@ export default function Tasks() {
           </Space>
         }
       >
+        <Space wrap size={10} style={{ marginBottom: 12 }}>
+          <Select
+            allowClear
+            showSearch
+            placeholder="全部仓库"
+            style={{ width: 260 }}
+            value={repoFilter || undefined}
+            onChange={(v) => setRepoFilter(v || '')}
+            options={repoFilterOptions}
+          />
+          <Select
+            allowClear
+            placeholder="全部类型"
+            style={{ width: 150 }}
+            value={kindFilter || undefined}
+            onChange={(v) => setKindFilter(v || '')}
+            options={kindFilterOptions}
+          />
+          <Input.Search
+            allowClear
+            placeholder="搜索 ID / PR 号 / head"
+            style={{ width: 240 }}
+            value={kw}
+            onChange={(e) => setKw(e.target.value)}
+            onSearch={(v) => setQ(v.trim())}
+          />
+        </Space>
         <Table<TaskRow>
           rowKey={(r) => r.id || r.task_id || ''}
           loading={loading}

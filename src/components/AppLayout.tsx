@@ -13,6 +13,7 @@ import {
   LogoutOutlined,
   PlusOutlined,
   BugOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -43,6 +44,7 @@ const NAV: NavItem[] = [
   { key: '/merges', icon: <MergeCellsOutlined />, label: '合并资格门', perm: 'decide_review' },
   { key: '/fix-push', icon: <SendOutlined />, label: '受控推送', perm: 'decide_review' },
   { key: '/assistant', icon: <QuestionCircleOutlined />, label: '审查问答' },
+  { key: '/agents', icon: <AppstoreOutlined />, label: '插件能力' },
   { key: '/settings/repos', icon: <ControlOutlined />, label: '仓库设置' },
   { key: '/invites', icon: <UserAddOutlined />, label: '邀请成员', perm: 'manage_membership' },
   { key: '/me', icon: <IdcardOutlined />, label: '我的权限' },

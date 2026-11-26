@@ -14,6 +14,7 @@ import Approvals from './pages/Approvals'
 import Merges from './pages/Merges'
 import FixPush from './pages/FixPush'
 import Assistant from './pages/Assistant'
+import Agents from './pages/Agents'
 import RepoSettings from './pages/RepoSettings'
 import Findings from './pages/Findings'
 import Invites from './pages/Invites'
@@ -57,6 +58,7 @@ function Shell() {
         <Route path="merges" element={<Merges />} />
         <Route path="fix-push" element={<FixPush />} />
         <Route path="assistant" element={<Assistant />} />
+        <Route path="agents" element={<Agents />} />
         <Route path="settings/repos" element={<RepoSettings />} />
         <Route path="invites" element={<Invites />} />
         <Route path="me" element={<Me />} />

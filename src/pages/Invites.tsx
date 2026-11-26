@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { App, Button, Card, Form, Input, Select, Space, Table, Tag, Typography } from 'antd'
 import { UserAddOutlined, CopyOutlined, LinkOutlined } from '@ant-design/icons'
-import { api, type MemberRow } from '../api/client'
+import { api, type InviteRow, type MemberRow } from '../api/client'
 import { fmtTime } from '../constants/vocab'
 import { useAuth } from '../auth/AuthContext'
 
@@ -38,6 +38,10 @@ export default function Invites() {
   const [members, setMembers] = useState<MemberRow[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersErr, setMembersErr] = useState('')
+  const [invites, setInvites] = useState<InviteRow[]>([])
+  const [invitesLoading, setInvitesLoading] = useState(false)
+  const [invitesErr, setInvitesErr] = useState('')
+  const [inviteStatus, setInviteStatus] = useState('')
 
   const allowed = !user?.permissions || can('manage_membership')
 
@@ -55,10 +59,34 @@ export default function Invites() {
     }
   }
 
+  const loadInvites = async () => {
+    setInvitesLoading(true)
+    setInvitesErr('')
+    try {
+      const res = await api.inviteHistory()
+      setInvites(res?.invites ?? [])
+    } catch (e: any) {
+      setInvites([])
+      setInvitesErr(e?.message || '邀请历史加载失败')
+    } finally {
+      setInvitesLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (allowed) void loadMembers()
+    if (!allowed) return
+    void loadMembers()
+    void loadInvites()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowed])
+
+  /** 邀请状态标签（服务端派生 pending|used|expired）。 */
+  const INVITE_STATUS: Record<string, { text: string; color: string }> = {
+    pending: { text: '待接受', color: 'processing' },
+    used: { text: '已使用', color: 'success' },
+    expired: { text: '已过期', color: 'default' },
+  }
+  const visibleInvites = inviteStatus ? invites.filter((i) => i.status === inviteStatus) : invites
 
   const onCreate = async (v: any) => {
     setBusy(true)
@@ -71,6 +99,7 @@ export default function Invites() {
       setResult(r)
       form.resetFields()
       message.success('邀请已生成')
+      void loadInvites()
     } catch (e: any) {
       message.error(e?.message || '创建失败')
     } finally {
@@ -144,6 +173,61 @@ export default function Invites() {
                   render: (v: string) => <Tag color={v === 'admin' ? 'red' : v === 'maintainer' ? 'blue' : 'default'}>{ROLE_LABEL[v] || v}<span style={{ opacity: 0.6 }}> · {v}</span></Tag>,
                 },
                 { title: '创建时间', dataIndex: 'created_at', width: 160, render: (v: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
+              ]}
+            />
+          )}
+        </Card>
+      )}
+
+      {allowed && (
+        <Card
+          className="glass"
+          style={{ marginTop: 16 }}
+          title={`邀请历史（${visibleInvites.length}）`}
+          extra={(
+            <Space>
+              <Select
+                size="small"
+                style={{ width: 120 }}
+                value={inviteStatus}
+                onChange={setInviteStatus}
+                options={[
+                  { value: '', label: '全部状态' },
+                  { value: 'pending', label: '待接受' },
+                  { value: 'used', label: '已使用' },
+                  { value: 'expired', label: '已过期' },
+                ]}
+              />
+              <Button size="small" onClick={loadInvites} loading={invitesLoading}>刷新</Button>
+            </Space>
+          )}
+        >
+          {invitesErr ? (
+            <Typography.Text type="danger">{invitesErr}</Typography.Text>
+          ) : (
+            <Table<InviteRow>
+              size="small"
+              rowKey="invite_id"
+              loading={invitesLoading}
+              dataSource={visibleInvites}
+              pagination={{ pageSize: 8, showSizeChanger: false }}
+              columns={[
+                {
+                  title: '角色', dataIndex: 'role', width: 150,
+                  render: (v: string) => <Tag color="blue">{ROLE_LABEL[v] || v}<span style={{ opacity: 0.6 }}> · {v}</span></Tag>,
+                },
+                {
+                  title: '状态', dataIndex: 'status', width: 100,
+                  render: (v: string) => {
+                    const st = INVITE_STATUS[v] || { text: v, color: 'default' }
+                    return <Tag color={st.color}>{st.text}</Tag>
+                  },
+                },
+                { title: '预定用户名', dataIndex: 'username', width: 140, render: (v?: string) => v || <Typography.Text type="secondary">—</Typography.Text> },
+                { title: '创建者', dataIndex: 'created_by', width: 120, render: (v?: string) => v || '—' },
+                { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v?: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
+                { title: '到期时间', dataIndex: 'expires_at', width: 150, render: (v?: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
+                { title: '使用时间', dataIndex: 'used_at', width: 150, render: (v?: number) => <span className="mono" style={{ fontSize: 12 }}>{v ? fmtTime(v) : '—'}</span> },
               ]}
             />
           )}

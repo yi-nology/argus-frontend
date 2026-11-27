@@ -1,4 +1,5 @@
-import { Menu, Tag, Typography, Space, Button, Avatar, Dropdown } from 'antd'
+import { useState } from 'react'
+import { Menu, Tag, Typography, Space, Button, Avatar, Dropdown, Drawer, Grid } from 'antd'
 import {
   ControlOutlined,
   DashboardOutlined,
@@ -14,6 +15,7 @@ import {
   PlusOutlined,
   BugOutlined,
   AppstoreOutlined,
+  MenuOutlined,
 } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -65,13 +67,53 @@ export default function AppLayout() {
   const nav = useNavigate()
   const loc = useLocation()
   const { user, logout, can } = useAuth()
+  // md(768) 以下：固定侧栏让位给 Drawer 抽屉。useBreakpoint 首帧返回
+  // 空对象 → compact=false（先渲染桌面形态），匹配结果到达后再切换，
+  // 避免宽屏首帧闪抽屉。
+  const screens = Grid.useBreakpoint()
+  const compact = screens.md === false
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const items = NAV.filter((n) => {
     if (!n.perm) return true
     // 静态超管 token（无 permissions 投影）默认全可见；服务端仍二次判定。
     if (!user?.permissions) return true
     return can(n.perm)
-  }).map((n) => ({ key: n.key, icon: n.icon, label: n.label, onClick: () => nav(n.key) }))
+  }).map((n) => ({
+    key: n.key,
+    icon: n.icon,
+    label: n.label,
+    onClick: () => {
+      nav(n.key)
+      setDrawerOpen(false)
+    },
+  }))
+
+  const menu = (
+    <Menu
+      mode="inline"
+      inlineCollapsed={false}
+      selectedKeys={[selectedKey(loc.pathname)]}
+      items={items}
+      style={{ borderInlineEnd: 'none', background: 'transparent', width: '100%' }}
+    />
+  )
+
+  const newTaskBtn = (
+    <div style={{ padding: 16 }}>
+      <Button
+        block
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={() => {
+          nav('/tasks')
+          setDrawerOpen(false)
+        }}
+      >
+        新建审查
+      </Button>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
@@ -80,7 +122,7 @@ export default function AppLayout() {
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          padding: '0 24px',
+          padding: compact ? '0 12px' : '0 24px',
           background: 'rgba(11,15,22,0.86)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(148,163,184,0.12)',
@@ -90,14 +132,27 @@ export default function AppLayout() {
           height: 56,
         }}
       >
+        {compact && (
+          <Button
+            type="text"
+            aria-label="打开导航"
+            icon={<MenuOutlined style={{ fontSize: 18, color: palette.text }} />}
+            onClick={() => setDrawerOpen(true)}
+            style={{ flex: '0 0 auto' }}
+          />
+        )}
         <Typography.Text strong style={{ fontSize: 17, letterSpacing: 0.4 }}>
           Argus
         </Typography.Text>
-        <Tag style={{ marginInlineEnd: 0 }}>审查工作台</Tag>
+        {!compact && <Tag style={{ marginInlineEnd: 0 }}>审查工作台</Tag>}
         <div style={{ flex: 1 }} />
         <Space>
-          <Tag color="blue">{user?.role || user?.scope || '—'}</Tag>
-          <Typography.Text type="secondary">{user?.username}</Typography.Text>
+          {!compact && (
+            <>
+              <Tag color="blue">{user?.role || user?.scope || '—'}</Tag>
+              <Typography.Text type="secondary">{user?.username}</Typography.Text>
+            </>
+          )}
           <Dropdown
             menu={{
               items: [
@@ -128,34 +183,37 @@ export default function AppLayout() {
       </header>
 
       <div style={{ display: 'flex', alignItems: 'stretch' }}>
-        <aside
-          style={{
-            width: 200,
-            minWidth: 200,
-            flex: '0 0 200px',
-            position: 'sticky',
-            top: 56,
-            alignSelf: 'flex-start',
-            height: 'calc(100vh - 56px)',
-            overflowY: 'auto',
-            background: 'rgba(11,15,22,0.55)',
-            borderRight: '1px solid rgba(148,163,184,0.1)',
-            paddingTop: 12,
-          }}
+        {!compact && (
+          <aside
+            style={{
+              width: 200,
+              minWidth: 200,
+              flex: '0 0 200px',
+              position: 'sticky',
+              top: 56,
+              alignSelf: 'flex-start',
+              height: 'calc(100vh - 56px)',
+              overflowY: 'auto',
+              background: 'rgba(11,15,22,0.55)',
+              borderRight: '1px solid rgba(148,163,184,0.1)',
+              paddingTop: 12,
+            }}
+          >
+            {menu}
+            {newTaskBtn}
+          </aside>
+        )}
+
+        <Drawer
+          placement="left"
+          open={compact && drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          size={240}
+          styles={{ body: { padding: 0, background: 'rgba(11,15,22,0.98)' } }}
         >
-          <Menu
-            mode="inline"
-            inlineCollapsed={false}
-            selectedKeys={[selectedKey(loc.pathname)]}
-            items={items}
-            style={{ borderInlineEnd: 'none', background: 'transparent', width: '100%' }}
-          />
-          <div style={{ padding: 16 }}>
-            <Button block type="primary" icon={<PlusOutlined />} onClick={() => nav('/tasks')}>
-              新建审查
-            </Button>
-          </div>
-        </aside>
+          <div style={{ paddingTop: 12 }}>{menu}</div>
+          {newTaskBtn}
+        </Drawer>
 
         <main style={{ flex: 1, minWidth: 0, minHeight: 360 }}>
           <Outlet />

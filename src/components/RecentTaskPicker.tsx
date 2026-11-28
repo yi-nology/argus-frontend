@@ -7,6 +7,10 @@ import { Select } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import { api, type TaskRow } from '../api/client'
 import { statusLabel } from '../constants/vocab'
+import { t } from '../theme/tokens'
+
+/** 下拉默认宽度（px；整行排布时的最大宽度）。 */
+const DEFAULT_MAX_W = 560
 
 export default function RecentTaskPicker({
   onPick,
@@ -28,9 +32,7 @@ export default function RecentTaskPicker({
       .listTasks({ limit: 30 })
       .then((rows) => {
         if (!alive) return
-        setTasks(
-          rows.filter((t) => !!t.id && !!t.platform && !!t.owner && !!t.repo && !!t.number),
-        )
+        setTasks(rows.filter((t) => !!t.id && !!t.platform && !!t.owner && !!t.repo && !!t.number))
       })
       .catch(() => {
         /* 清单失败不阻断手填坐标 */
@@ -50,17 +52,19 @@ export default function RecentTaskPicker({
       value={value}
       placeholder={
         <span>
-          <HistoryOutlined style={{ marginRight: 6 }} />
+          <HistoryOutlined style={{ marginRight: t.space.sm }} />
           {placeholder}
         </span>
       }
-      style={style ?? { width: '100%', maxWidth: 560 }}
+      style={style ?? { width: '100%', maxWidth: DEFAULT_MAX_W }}
       options={tasks.map((t) => ({
         value: (t.id || t.task_id)!,
         label: `${t.platform}/${t.owner}/${t.repo}#${t.number} · ${statusLabel(t.status)}`,
       }))}
       filterOption={(input, opt) =>
-        String(opt?.label ?? '').toLowerCase().includes(input.toLowerCase())
+        String(opt?.label ?? '')
+          .toLowerCase()
+          .includes(input.toLowerCase())
       }
       onChange={(id) => {
         setValue(id || undefined)

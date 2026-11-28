@@ -1,0 +1,4 @@
+src/.umi
+src/.umi-production
+dist
+node_modules

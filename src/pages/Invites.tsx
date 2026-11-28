@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
-import { App, Button, Card, Form, Input, Select, Space, Table, Tag, Typography } from 'antd'
+import { useState } from 'react'
+import { App, Button, Form, Input, Select, Space, Table, Tag, Typography } from 'antd'
 import { UserAddOutlined, CopyOutlined, LinkOutlined } from '@ant-design/icons'
-import { api, type InviteRow, type MemberRow } from '../api/client'
+import { api, errMsg, type InviteRow, type MemberRow } from '../api/client'
 import { fmtTime } from '../constants/vocab'
 import { useAuth } from '../auth/AuthContext'
+import { useApi } from '../hooks/useApi'
+import { Panel } from '../components/Widgets'
+import { t } from '../theme/tokens'
 
 const ROLE_OPTIONS = [
   { value: 'viewer', label: 'viewer — 只读' },
@@ -29,83 +32,100 @@ const ROLE_LABEL: Record<string, string> = {
   admin: '管理员',
 }
 
+/** 邀请状态标签（服务端派生 pending|used|expired；点 + 文案，不用彩色 Tag）。 */
+const INVITE_STATUS: Record<string, { text: string; dot: string }> = {
+  pending: { text: '待接受', dot: 'run' },
+  used: { text: '已使用', dot: 'ok' },
+  expired: { text: '已过期', dot: 'mute' },
+}
+
+interface InviteResult {
+  invite_id: string
+  token: string
+  role: string
+  expires_at: number
+}
+
+interface CreateInviteValues {
+  role: string
+  username?: string
+  ttl_hours: number
+}
+
+/** 角色徽章：中文名 + 原始值（中性 Tag，语义色由文本层级表达）。 */
+function RoleTag({ role }: { role: string }) {
+  return (
+    <Tag>
+      {ROLE_LABEL[role] || role}
+      <Typography.Text type="secondary"> · {role}</Typography.Text>
+    </Tag>
+  )
+}
+
+/** 邀请状态（StatusDot 视觉语言，标签为邀请语境）。 */
+function InviteStatusDot({ status }: { status: string }) {
+  const st = INVITE_STATUS[status] || { text: status, dot: 'mute' }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+      <span className={`dot ${st.dot}`} />
+      <span className="t-sm">{st.text}</span>
+    </span>
+  )
+}
+
 export default function Invites() {
   const { can, user } = useAuth()
   const { message } = App.useApp()
-  const [result, setResult] = useState<any>(null)
-  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<InviteResult | null>(null)
   const [form] = Form.useForm()
-  const [members, setMembers] = useState<MemberRow[]>([])
-  const [membersLoading, setMembersLoading] = useState(false)
-  const [membersErr, setMembersErr] = useState('')
-  const [invites, setInvites] = useState<InviteRow[]>([])
-  const [invitesLoading, setInvitesLoading] = useState(false)
-  const [invitesErr, setInvitesErr] = useState('')
   const [inviteStatus, setInviteStatus] = useState('')
 
   const allowed = !user?.permissions || can('manage_membership')
 
-  const loadMembers = async () => {
-    setMembersLoading(true)
-    setMembersErr('')
-    try {
+  const {
+    data: members = [],
+    loading: membersLoading,
+    errorText: membersErr,
+    refresh: loadMembers,
+  } = useApi(
+    async () => {
+      if (!allowed) return []
       const res = await api.members()
-      setMembers(res?.members ?? [])
-    } catch (e: any) {
-      setMembers([])
-      setMembersErr(e?.message || '成员清单加载失败')
-    } finally {
-      setMembersLoading(false)
-    }
-  }
+      return res?.members ?? []
+    },
+    { refreshDeps: [allowed], errorFallback: '成员清单加载失败' },
+  )
 
-  const loadInvites = async () => {
-    setInvitesLoading(true)
-    setInvitesErr('')
-    try {
+  const {
+    data: invites = [],
+    loading: invitesLoading,
+    errorText: invitesErr,
+    refresh: loadInvites,
+  } = useApi(
+    async () => {
+      if (!allowed) return []
       const res = await api.inviteHistory()
-      setInvites(res?.invites ?? [])
-    } catch (e: any) {
-      setInvites([])
-      setInvitesErr(e?.message || '邀请历史加载失败')
-    } finally {
-      setInvitesLoading(false)
-    }
-  }
+      return res?.invites ?? []
+    },
+    { refreshDeps: [allowed], errorFallback: '邀请历史加载失败' },
+  )
 
-  useEffect(() => {
-    if (!allowed) return
-    void loadMembers()
-    void loadInvites()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowed])
-
-  /** 邀请状态标签（服务端派生 pending|used|expired）。 */
-  const INVITE_STATUS: Record<string, { text: string; color: string }> = {
-    pending: { text: '待接受', color: 'processing' },
-    used: { text: '已使用', color: 'success' },
-    expired: { text: '已过期', color: 'default' },
-  }
   const visibleInvites = inviteStatus ? invites.filter((i) => i.status === inviteStatus) : invites
 
-  const onCreate = async (v: any) => {
-    setBusy(true)
-    try {
-      const r = await api.createInvite({
-        role: v.role,
-        username: v.username || undefined,
-        ttl_hours: v.ttl_hours,
-      })
-      setResult(r)
-      form.resetFields()
-      message.success('邀请已生成')
-      void loadInvites()
-    } catch (e: any) {
-      message.error(e?.message || '创建失败')
-    } finally {
-      setBusy(false)
-    }
-  }
+  const { run: onCreate, loading: busy } = useApi(
+    (v: CreateInviteValues) =>
+      api.createInvite({ role: v.role, username: v.username || undefined, ttl_hours: v.ttl_hours }),
+    {
+      manual: true,
+      onSuccess: (r) => {
+        setResult(r)
+        form.resetFields()
+        message.success('邀请已生成')
+        void loadInvites()
+      },
+      onError: (e) => message.error(errMsg(e, '创建失败')),
+    },
+  )
 
   const acceptUrl = result ? `${window.location.origin}/accept-invite?token=${result.token}` : ''
 
@@ -128,11 +148,11 @@ export default function Invites() {
       </Typography.Paragraph>
 
       {!allowed ? (
-        <Card className="glass">
+        <Panel>
           <Typography.Text type="warning">仅 admin 角色可创建邀请。</Typography.Text>
-        </Card>
+        </Panel>
       ) : (
-        <Card className="glass" title="生成邀请">
+        <Panel title="生成邀请">
           <Form form={form} layout="vertical" onFinish={onCreate} style={{ maxWidth: 420 }}>
             <Form.Item name="role" initialValue="maintainer" label="角色">
               <Select options={ROLE_OPTIONS} />
@@ -147,15 +167,18 @@ export default function Invites() {
               生成邀请链接
             </Button>
           </Form>
-        </Card>
+        </Panel>
       )}
 
       {allowed && (
-        <Card
-          className="glass"
-          style={{ marginTop: 16 }}
+        <Panel
+          className="section"
           title={`现有成员（${members.length}）`}
-          extra={<Button size="small" onClick={loadMembers} loading={membersLoading}>刷新</Button>}
+          extra={
+            <Button size="small" onClick={() => void loadMembers()} loading={membersLoading}>
+              刷新
+            </Button>
+          }
         >
           {membersErr ? (
             <Typography.Text type="danger">{membersErr}</Typography.Text>
@@ -166,25 +189,36 @@ export default function Invites() {
               loading={membersLoading}
               dataSource={members}
               pagination={false}
+              scroll={{ x: 600 }}
               columns={[
-                { title: '用户名', dataIndex: 'username', render: (v: string) => <span className="mono">{v}</span> },
                 {
-                  title: '角色', dataIndex: 'role', width: 160,
-                  render: (v: string) => <Tag color={v === 'admin' ? 'red' : v === 'maintainer' ? 'blue' : 'default'}>{ROLE_LABEL[v] || v}<span style={{ opacity: 0.6 }}> · {v}</span></Tag>,
+                  title: '用户名',
+                  dataIndex: 'username',
+                  render: (v: string) => <span className="mono">{v}</span>,
                 },
-                { title: '创建时间', dataIndex: 'created_at', width: 160, render: (v: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
+                {
+                  title: '角色',
+                  dataIndex: 'role',
+                  width: 160,
+                  render: (v: string) => <RoleTag role={v} />,
+                },
+                {
+                  title: '创建时间',
+                  dataIndex: 'created_at',
+                  width: 160,
+                  render: (v: number) => <span className="mono meta-sm">{fmtTime(v)}</span>,
+                },
               ]}
             />
           )}
-        </Card>
+        </Panel>
       )}
 
       {allowed && (
-        <Card
-          className="glass"
-          style={{ marginTop: 16 }}
+        <Panel
+          className="section"
           title={`邀请历史（${visibleInvites.length}）`}
-          extra={(
+          extra={
             <Space>
               <Select
                 size="small"
@@ -198,9 +232,11 @@ export default function Invites() {
                   { value: 'expired', label: '已过期' },
                 ]}
               />
-              <Button size="small" onClick={loadInvites} loading={invitesLoading}>刷新</Button>
+              <Button size="small" onClick={() => void loadInvites()} loading={invitesLoading}>
+                刷新
+              </Button>
             </Space>
-          )}
+          }
         >
           {invitesErr ? (
             <Typography.Text type="danger">{invitesErr}</Typography.Text>
@@ -210,39 +246,84 @@ export default function Invites() {
               rowKey="invite_id"
               loading={invitesLoading}
               dataSource={visibleInvites}
-              pagination={{ pageSize: 8, showSizeChanger: false }}
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: false,
+                showTotal: (total) => `共 ${total} 条`,
+              }}
+              scroll={{ x: 960 }}
               columns={[
                 {
-                  title: '角色', dataIndex: 'role', width: 150,
-                  render: (v: string) => <Tag color="blue">{ROLE_LABEL[v] || v}<span style={{ opacity: 0.6 }}> · {v}</span></Tag>,
+                  title: '角色',
+                  dataIndex: 'role',
+                  width: 150,
+                  render: (v: string) => <RoleTag role={v} />,
                 },
                 {
-                  title: '状态', dataIndex: 'status', width: 100,
-                  render: (v: string) => {
-                    const st = INVITE_STATUS[v] || { text: v, color: 'default' }
-                    return <Tag color={st.color}>{st.text}</Tag>
-                  },
+                  title: '状态',
+                  dataIndex: 'status',
+                  width: 100,
+                  render: (v: string) => <InviteStatusDot status={v} />,
                 },
-                { title: '预定用户名', dataIndex: 'username', width: 140, render: (v?: string) => v || <Typography.Text type="secondary">—</Typography.Text> },
-                { title: '创建者', dataIndex: 'created_by', width: 120, render: (v?: string) => v || '—' },
-                { title: '创建时间', dataIndex: 'created_at', width: 150, render: (v?: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
-                { title: '到期时间', dataIndex: 'expires_at', width: 150, render: (v?: number) => <span className="mono" style={{ fontSize: 12 }}>{fmtTime(v)}</span> },
-                { title: '使用时间', dataIndex: 'used_at', width: 150, render: (v?: number) => <span className="mono" style={{ fontSize: 12 }}>{v ? fmtTime(v) : '—'}</span> },
+                {
+                  title: '预定用户名',
+                  dataIndex: 'username',
+                  width: 140,
+                  render: (v?: string) =>
+                    v || <Typography.Text type="secondary">—</Typography.Text>,
+                },
+                {
+                  title: '创建者',
+                  dataIndex: 'created_by',
+                  width: 120,
+                  render: (v?: string) => v || '—',
+                },
+                {
+                  title: '创建时间',
+                  dataIndex: 'created_at',
+                  width: 150,
+                  render: (v?: number) => <span className="mono meta-sm">{fmtTime(v)}</span>,
+                },
+                {
+                  title: '到期时间',
+                  dataIndex: 'expires_at',
+                  width: 150,
+                  render: (v?: number) => <span className="mono meta-sm">{fmtTime(v)}</span>,
+                },
+                {
+                  title: '使用时间',
+                  dataIndex: 'used_at',
+                  width: 150,
+                  render: (v?: number) => (
+                    <span className="mono meta-sm">{v ? fmtTime(v) : '—'}</span>
+                  ),
+                },
               ]}
             />
           )}
-        </Card>
+        </Panel>
       )}
 
       {result && (
-        <Card className="glass" style={{ marginTop: 16 }} title="邀请已创建">
-          <Space orientation="vertical" style={{ width: '100%' }} size={12}>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        <Panel className="section" title="邀请已创建">
+          <Space orientation="vertical" style={{ width: '100%' }} size={t.space.md}>
+            <Typography.Text type="secondary" className="meta-sm">
               把下面的链接发给受邀者（只显示一次，请立即保存）：
             </Typography.Text>
-            <Tag color="blue" icon={<LinkOutlined />} style={{ whiteSpace: 'normal', wordBreak: 'break-all', padding: '6px 10px' }}>
-              {acceptUrl}
-            </Tag>
+            <div
+              className="panel"
+              style={{
+                padding: t.space.md,
+                display: 'flex',
+                gap: t.space.sm,
+                alignItems: 'center',
+              }}
+            >
+              <LinkOutlined style={{ color: t.color.accent }} />
+              <span className="mono t-xs" style={{ wordBreak: 'break-all' }}>
+                {acceptUrl}
+              </span>
+            </div>
             <Space>
               <Button icon={<CopyOutlined />} onClick={() => copy(acceptUrl)}>
                 复制邀请链接
@@ -251,20 +332,27 @@ export default function Invites() {
                 仅复制 token
               </Button>
             </Space>
-            <div style={{ display: 'grid', gap: 6, maxWidth: 520 }}>
-              {([
-                ['邀请 ID', result.invite_id],
-                ['角色', result.role],
-                ['到期时间', fmtTime(result.expires_at)],
-              ] as const).map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                  <span style={{ opacity: 0.6, fontSize: 12 }}>{k}</span>
-                  <span className="mono" style={{ fontSize: 12 }}>{v}</span>
+            <div style={{ display: 'grid', gap: t.space.sm, maxWidth: 520 }}>
+              {(
+                [
+                  ['邀请 ID', result.invite_id],
+                  ['角色', result.role],
+                  ['到期时间', fmtTime(result.expires_at)],
+                ] as const
+              ).map(([k, v]) => (
+                <div
+                  key={k}
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: t.space.md }}
+                >
+                  <Typography.Text type="secondary" className="meta-sm">
+                    {k}
+                  </Typography.Text>
+                  <span className="mono meta-sm">{v}</span>
                 </div>
               ))}
             </div>
           </Space>
-        </Card>
+        </Panel>
       )}
     </div>
   )

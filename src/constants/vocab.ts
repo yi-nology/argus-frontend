@@ -72,14 +72,37 @@ export const SEVERITY_FLOOR_OPTIONS = [
   { label: '仅 critical', value: 'critical' },
 ]
 
-export const SEVERITY_COLOR: Record<string, string> = {
-  critical: 'magenta',
-  high: 'red',
-  medium: 'orange',
-  low: 'blue',
+/** 严重级文案 + 语义色档（sev-<tone> 徽章，不用 antd 预设名混色系）。 */
+export const SEVERITY_LABELS: Record<string, string> = {
+  critical: '严重',
+  high: '高',
+  medium: '中',
+  low: '低',
+  info: '提示',
 }
 
-/** 裁决配色/文案（三个 verdict 词表）。 */
+export type SevTone = 'critical' | 'high' | 'medium' | 'low' | 'info'
+
+export const SEVERITY_TONE: Record<string, SevTone> = {
+  critical: 'critical',
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  info: 'info',
+}
+
+/** 严重级排序（治理列表用）。 */
+export const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'info'] as const
+
+/** 裁决文案 + 语义色档。 */
+export type VerdictTone = 'success' | 'attention' | 'danger' | 'info'
+
+export const VERDICT_TONE: Record<string, VerdictTone> = {
+  approve: 'success',
+  comment: 'attention',
+  request_changes: 'danger',
+}
+
 export const VERDICT_COLOR: Record<string, string> = {
   approve: 'success',
   comment: 'warning',
@@ -90,6 +113,19 @@ export const VERDICT_LABELS: Record<string, string> = {
   approve: '通过',
   comment: '建议修改',
   request_changes: '需修改',
+}
+
+/** 数字千分位（指标展示统一走这里）。 */
+export function fmtNum(n?: number | null): string {
+  if (n === undefined || n === null || Number.isNaN(n)) return '—'
+  return n.toLocaleString('en-US')
+}
+
+/** 百分比（0-1 或 0-100 自动识别；空值为 —）。 */
+export function pct(v?: number | null): string {
+  if (v === undefined || v === null || Number.isNaN(v)) return '—'
+  const ratio = v <= 1 ? v : v / 100
+  return `${(ratio * 100).toFixed(1)}%`
 }
 
 /** 统一时间格式（YYYY-MM-DD HH:mm；兼容 unix 秒与 ISO 字符串）。 */

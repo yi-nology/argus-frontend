@@ -1,7 +1,14 @@
-import { Card, Col, Row, Tag, Typography, Button, Space } from 'antd'
-import { CheckCircleFilled, MinusCircleFilled, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons'
+import { Col, Row, Tag, Typography, Button, Space } from 'antd'
+import {
+  CheckCircleFilled,
+  MinusCircleFilled,
+  SafetyCertificateOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
 import type { PermissionBits } from '../api/client'
+import { Panel } from '../components/Widgets'
+import { t } from '../theme/tokens'
 
 const PERMS: { key: keyof PermissionBits; label: string; desc: string }[] = [
   { key: 'read_repository', label: 'read_repository', desc: '读仓库 / 任务元数据' },
@@ -27,65 +34,70 @@ export default function Me() {
         以下权限由服务端根据角色投影生成；界面展示仅作参考，实际读写判定以服务端为准。
       </Typography.Paragraph>
 
-      <Card
-        className="glass"
+      <Panel
         title={
           <Space>
-            <UserOutlined style={{ color: '#5b8def' }} />
+            <UserOutlined style={{ color: t.color.accent }} />
             身份
-            <Tag color="blue">{user?.role || user?.scope || '—'}</Tag>
+            <Tag>{user?.role || user?.scope || '—'}</Tag>
           </Space>
         }
         extra={<Button onClick={() => void refresh()}>刷新</Button>}
       >
         <Row gutter={[16, 16]}>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Typography.Text type="secondary">username</Typography.Text>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>{user?.username}</div>
+            <div className="t-lg t-semibold">{user?.username}</div>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Typography.Text type="secondary">scope</Typography.Text>
-            <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{user?.scope || '—'}</div>
+            <div className="mono t-lg t-semibold">{user?.scope || '—'}</div>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Typography.Text type="secondary">user_id</Typography.Text>
-            <div className="mono" style={{ fontSize: 14 }}>{user?.user_id || '—'}</div>
+            <div className="mono t-md">{user?.user_id || '—'}</div>
           </Col>
         </Row>
-      </Card>
+      </Panel>
 
-      <Card className="glass" title={<span><SafetyCertificateOutlined /> 权限矩阵</span>} style={{ marginTop: 16 }}>
+      <Panel
+        className="section"
+        title={
+          <span>
+            <SafetyCertificateOutlined /> 权限矩阵
+          </span>
+        }
+      >
         <Row gutter={[12, 12]}>
           {PERMS.map((it) => {
             const ok = !!p[it.key]
             return (
               <Col xs={12} md={8} lg={6} key={it.key}>
                 <div
-                  className="glass-hover"
+                  className="panel panel-hover"
                   style={{
-                    borderRadius: 12,
-                    padding: 14,
-                    border: `1px solid ${ok ? 'rgba(52,211,153,0.35)' : 'rgba(148,163,184,0.12)'}`,
-                    background: ok ? 'rgba(52,211,153,0.08)' : 'rgba(18,28,48,0.5)',
+                    padding: t.space.lg,
+                    borderColor: ok ? t.color.success : t.color.borderMuted,
+                    background: ok ? t.color.successSubtle : t.color.surfaceSubtle,
                   }}
                 >
                   <Space>
                     {ok ? (
-                      <CheckCircleFilled style={{ color: '#34d399' }} />
+                      <CheckCircleFilled style={{ color: t.color.success }} />
                     ) : (
-                      <MinusCircleFilled style={{ color: '#5c6f92' }} />
+                      <MinusCircleFilled style={{ color: t.color.textSubtle }} />
                     )}
-                    <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>
-                      {it.label}
-                    </span>
+                    <span className="mono t-xs t-semibold">{it.label}</span>
                   </Space>
-                  <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>{it.desc}</div>
+                  <div className="meta-sm" style={{ marginTop: t.space.sm }}>
+                    {it.desc}
+                  </div>
                 </div>
               </Col>
             )
           })}
         </Row>
-      </Card>
+      </Panel>
     </div>
   )
 }

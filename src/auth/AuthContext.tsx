@@ -1,13 +1,23 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   api,
   getCachedUser,
   getToken,
+  isApiError,
   setCachedUser,
   setToken,
   type Me,
   type PermissionBits,
 } from '../api/client'
+import { defer } from '../hooks/async'
 
 interface AuthCtx {
   user: Me | null
@@ -35,17 +45,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await api.me()
       setUser(me)
       setCachedUser(me)
-    } catch {
-      setToken('')
-      setUser(null)
-      setCachedUser(null)
+    } catch (e) {
+      // 只有「明确未认证」才销毁会话。429（限流）/ 5xx（后端重启）/ 网络抖动
+      // 都是瞬时故障——把用户踢下线是二次伤害，这里保留 token 与缓存用户，
+      // 页面继续可用，下次 refresh 自愈。真 401 才走登录页。
+      if (isApiError(e) && e.status === 401) {
+        setToken('')
+        setUser(null)
+        setCachedUser(null)
+      }
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    void refresh()
+    // 状态写入经 continuation：effect 体不直接调用 setState 动作。
+    defer(() => void refresh())
   }, [refresh])
 
   const login = useCallback(
@@ -75,7 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   )
 
-  const value = useMemo(() => ({ user, loading, login, logout, refresh, can }), [user, loading, login, logout, refresh, can])
+  const value = useMemo(
+    () => ({ user, loading, login, logout, refresh, can }),
+    [user, loading, login, logout, refresh, can],
+  )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

@@ -1,39 +1,54 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
-  Alert, App, Button, Card, Col, Descriptions, Input, Popconfirm, Row,
-  Space, Spin, Statistic, Tag, Typography,
+  Alert,
+  App,
+  Button,
+  Col,
+  Descriptions,
+  Input,
+  Popconfirm,
+  Row,
+  Space,
+  Spin,
+  Statistic,
+  Tag,
+  Typography,
 } from 'antd'
 import {
-  AuditOutlined, CheckCircleFilled, CheckCircleOutlined, CloseCircleFilled,
-  ReloadOutlined, SearchOutlined, SendOutlined, WarningOutlined,
+  AuditOutlined,
+  CheckCircleFilled,
+  CheckCircleOutlined,
+  CloseCircleFilled,
+  ReloadOutlined,
+  SearchOutlined,
+  SendOutlined,
+  WarningOutlined,
 } from '@ant-design/icons'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type TaskRow } from '../api/client'
+import { useNavigate, useSearchParams } from '@umijs/max'
+import {
+  api,
+  errMsg,
+  isApiError,
+  type FixPushPreview,
+  type FixPushResult,
+  type TaskRow,
+} from '../api/client'
+import { Panel } from '../components/Widgets'
 import RepoPicker, { useConsoleOptions, type Coords } from '../components/RepoPicker'
 import RecentTaskPicker from '../components/RecentTaskPicker'
 import PRPicker from '../components/PRPicker'
-import { useAuth } from '../auth/AuthContext'
+import { PermissionBanners, useCanDecide } from '../components/PermissionBanners'
+import { scopeQuery, useDeepLink } from '../hooks/useDeepLink'
+import { useApi } from '../hooks/useApi'
+import { t } from '../theme/tokens'
 
-interface FixPushPreview {
-  task_id?: string
-  head_sha?: string
-  fix_status?: string
-  ready: boolean
-  message: string
-  pending_approvals: number
-  mode?: string
-}
-
-interface FixPushResult {
-  status: string
-  message: string
-  task_id?: string
-  head_sha?: string
-  fix_status?: string
-}
-
-/** 推送成功状态词（后端 FixPushConfirmResponse.status）。 */
+/**
+ * 推送成功状态词：镜像后端 FixPushConfirmResponse.status 的状态词表
+ * （pushed / pr_created / cr_existed），不在此扩展语义。
+ */
 const OK_STATUS = new Set(['pushed', 'pr_created', 'cr_existed'])
+
+type PreviewQuery = { platform: string; owner: string; repo: string; number: string }
 
 const STEPS = [
   { title: '预览就绪态', desc: '只读校验任务、当前 head 与待审批高危票，不写远端。' },
@@ -43,8 +58,7 @@ const STEPS = [
 
 export default function FixPush() {
   const { message } = App.useApp()
-  const { user, can } = useAuth()
-  const canDecide = can('decide_review')
+  const canDecide = useCanDecide()
   const nav = useNavigate()
   const [params] = useSearchParams()
   const opts = useConsoleOptions()
@@ -58,127 +72,130 @@ export default function FixPush() {
   )
   const [prev, setPrev] = useState<FixPushPreview | null>(null)
   const [result, setResult] = useState<FixPushResult | null>(null)
-  const [tasks, setTasks] = useState<TaskRow[]>([])
   /** 最近任务选中项（推送环未启用时 preview 不返回 task_id/head，用任务清单补展示）。 */
   const [pickedTaskId, setPickedTaskId] = useState<string | undefined>()
   const [forbidden, setForbidden] = useState(false)
-  const [busy, setBusy] = useState(false)
 
-  const query = (c: Coords = coords, n: number | null = number) => ({
-    platform: c.platform,
-    owner: c.owner.trim(),
-    repo: c.repo.trim(),
-    number: String(n ?? ''),
+  const { loading: previewing, run: runPreview } = useApi(api.fixPushPreview, {
+    manual: true,
+    onSuccess: (r) => setPrev(r),
+    onError: (e) => {
+      setPrev(null)
+      if (isApiError(e) && e.status === 403) {
+        setForbidden(true)
+        message.warning('无业务裁定权限：需要 maintainer 角色')
+      } else {
+        message.error(errMsg(e, '预览失败'))
+      }
+    },
   })
 
-  const doPreview = async (q: { platform: string; owner: string; repo: string; number: string }) => {
+  const doPreview = (q: PreviewQuery) => {
     if (!q.platform || !q.owner || !q.repo || !q.number) {
       message.warning('请完整选择仓库并填写 PR 号')
       return
     }
-    setBusy(true)
     setForbidden(false)
     setResult(null)
-    try {
-      const r = await api.fixPushPreview(q)
-      setPrev(r)
-    } catch (e: any) {
-      setPrev(null)
-      if (e?.status === 403) {
-        setForbidden(true)
-        message.warning('无业务裁定权限：需要 maintainer 角色')
-      } else {
-        message.error(e?.message || '预览失败')
-      }
-    } finally {
-      setBusy(false)
-    }
+    void runPreview(q)
   }
 
   const preview = () => {
     setPickedTaskId(undefined)
-    void doPreview(query())
+    void doPreview({
+      platform: coords.platform,
+      owner: coords.owner.trim(),
+      repo: coords.repo.trim(),
+      number: String(number ?? ''),
+    })
   }
 
   // 最近任务清单（供仍计算法用；失败不阻断手填坐标）。
-  useEffect(() => {
-    api.listTasks({ limit: 30 })
-      .then((rows) => {
-        const list = rows.filter((t) => !!t.head_sha && !!t.id)
-        setTasks(list)
-        const p = params.get('platform')
-        const o = params.get('owner')
-        const r = params.get('repo')
-        const n = params.get('number')
-        const match = list.find((t) =>
-          t.platform === p && t.owner === o &&
-          t.repo === r && String(t.number) === n)
-        if (match) setPickedTaskId((match.id || match.task_id) as string)
-      })
-      .catch(() => {/* 任务清单失败不阻断手填 */})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const { data: tasksRes } = useApi(
+    async () => {
+      const rows = await api.listTasks({ limit: 30 })
+      const list = rows.filter((row) => !!row.head_sha && !!row.id)
+      const p = params.get('platform')
+      const o = params.get('owner')
+      const r = params.get('repo')
+      const n = params.get('number')
+      const match = list.find(
+        (task) =>
+          task.platform === p && task.owner === o && task.repo === r && String(task.number) === n,
+      )
+      return { list, pickedId: match?.id || match?.task_id }
+    },
+    {
+      onSuccess: (d) => {
+        if (d.pickedId) setPickedTaskId(d.pickedId)
+      },
+    },
+  )
+  const tasks = tasksRes?.list ?? []
 
   // 深链带入坐标时自动预览；同路由换参数也重跑。
-  const deepLink = params.toString()
-  const lastDeepLink = useRef('')
-  useEffect(() => {
-    if (!deepLink || deepLink === lastDeepLink.current) return
-    lastDeepLink.current = deepLink
-    const p = params.get('platform')
-    const o = params.get('owner')
-    const r = params.get('repo')
-    const n = params.get('number')
-    if (p && o && r && n) {
-      setCoords({ platform: p, owner: o, repo: r })
-      setNumber(Number(n) || null)
-      void doPreview({ platform: p, owner: o, repo: r, number: n })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deepLink])
-
-  const pickTask = (t: TaskRow) => {
-    const c: Coords = { platform: t.platform || '', owner: t.owner || '', repo: t.repo || '' }
-    const n = Number(t.number) || null
+  useDeepLink((c, n) => {
     setCoords(c)
     setNumber(n)
-    setPickedTaskId((t.id || t.task_id) as string)
-    void doPreview({ ...c, owner: c.owner, number: String(t.number || '') })
-  }
+    void doPreview({ platform: c.platform, owner: c.owner, repo: c.repo, number: String(n ?? '') })
+  })
 
-  const confirm = async () => {
-    if (!prev?.ready || !prev.task_id || !prev.head_sha) return
-    setBusy(true)
-    try {
-      const r = await api.fixPushConfirm({
-        task_id: prev.task_id,
-        expected_remote_head: prev.head_sha,
-      })
-      setResult({
-        status: r.status, message: r.message,
-        task_id: prev.task_id, head_sha: r.head_sha || prev.head_sha, fix_status: r.fix_status,
-      })
-      if (OK_STATUS.has(r.status)) {
-        message.success(`推送完成：${r.status} — ${r.message}`)
-      } else {
-        message.warning(`未推送：${r.status} — ${r.message}`)
-      }
-      // 回读就绪态：pushed/failed 后按钮应消失，避免重复确认。
-      const next = await api.fixPushPreview(query()).catch(() => null)
-      setPrev(next)
-    } catch (e: any) {
-      message.error(e?.message || '确认失败')
-    } finally {
-      setBusy(false)
+  const pickTask = (task: TaskRow) => {
+    const c: Coords = {
+      platform: task.platform || '',
+      owner: task.owner || '',
+      repo: task.repo || '',
     }
+    const n = Number(task.number) || null
+    setCoords(c)
+    setNumber(n)
+    setPickedTaskId((task.id || task.task_id) as string)
+    void doPreview({ ...c, owner: c.owner, number: String(task.number || '') })
   }
 
-  const approvalsLink = () => {
-    const v = query()
-    return `/approvals?platform=${encodeURIComponent(v.platform)}&owner=${encodeURIComponent(v.owner)}&repo=${encodeURIComponent(v.repo)}&number=${encodeURIComponent(v.number)}`
+  const { loading: confirming, run: runConfirm } = useApi(
+    // _q 只经 params 透传给 onSuccess 的回读（请求本身不需要）。
+    (taskId: string, headSha: string, _q: PreviewQuery) =>
+      api.fixPushConfirm({ task_id: taskId, expected_remote_head: headSha }),
+    {
+      manual: true,
+      onSuccess: (r, [taskId, headSha, q]) => {
+        setResult({
+          status: r.status,
+          message: r.message,
+          task_id: taskId,
+          head_sha: r.head_sha || headSha,
+          fix_status: r.fix_status,
+        })
+        if (OK_STATUS.has(r.status)) {
+          message.success(`推送完成：${r.status} — ${r.message}`)
+        } else {
+          message.warning(`未推送：${r.status} — ${r.message}`)
+        }
+        // 回读就绪态：pushed/failed 后按钮应消失，避免重复确认。
+        void api
+          .fixPushPreview(q)
+          .then(setPrev)
+          .catch(() => setPrev(null))
+      },
+      onError: (e) => message.error(errMsg(e, '确认失败')),
+    },
+  )
+
+  const confirm = () => {
+    if (!prev?.ready || !prev.task_id || !prev.head_sha) return
+    void runConfirm(prev.task_id, prev.head_sha, {
+      platform: coords.platform,
+      owner: coords.owner.trim(),
+      repo: coords.repo.trim(),
+      number: String(number ?? ''),
+    })
   }
 
-  const pickedTask = tasks.find((t) => (t.id || t.task_id) === pickedTaskId)
+  const approvalsLink = () => `/approvals${scopeQuery(coords, number)}`
+
+  const busy = previewing || confirming
+  const pickedTask = tasks.find((task) => (task.id || task.task_id) === pickedTaskId)
   const knownTaskId = prev?.task_id || pickedTaskId
   const knownHead = prev?.head_sha || pickedTask?.head_sha
   const confirmable = !!prev?.ready && prev.mode === 'confirm' && !!prev.task_id && !!prev.head_sha
@@ -188,7 +205,10 @@ export default function FixPush() {
         { ok: !!knownTaskId, label: '任务存在' },
         { ok: !!knownHead, label: 'head 已绑定' },
         { ok: prev.mode === 'confirm', label: `推送模式 ${prev.mode || '—'}` },
-        { ok: !!knownTaskId && (prev.pending_approvals ?? 0) === 0, label: `高危审批齐备（${prev.pending_approvals ?? 0} 待批）` },
+        {
+          ok: !!knownTaskId && (prev.pending_approvals ?? 0) === 0,
+          label: `高危审批齐备（${prev.pending_approvals ?? 0} 待批）`,
+        },
         { ok: prev.ready, label: '后端判定就绪' },
       ]
     : []
@@ -203,34 +223,17 @@ export default function FixPush() {
         expected_remote_head（head 变更会被拒绝）。
       </Typography.Paragraph>
 
-      {!canDecide && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="当前账号无推送裁定权限"
-          description={`受控推送属于 maintainer 角色；当前角色为 ${user?.role || '—'}。`}
-        />
-      )}
-      {forbidden && (
-        <Alert
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="推送预览被拒绝（403）"
-          description="该接口要求 admin 档 + 业务裁定角色（maintainer），平台 admin 刻意无推送权。"
-        />
-      )}
+      <PermissionBanners canDecide={canDecide} forbidden={forbidden} />
 
-      <Card className="glass" style={{ marginBottom: 16 }}>
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+      <Panel style={{ marginBottom: t.space.lg }}>
+        <Space orientation="vertical" size={t.space.md} style={{ width: '100%' }}>
           <RecentTaskPicker
             onPick={pickTask}
             disabled={!canDecide}
             placeholder="从最近任务载入（自动填充并预览）"
             style={{ width: '100%', maxWidth: 640 }}
           />
-          <Space wrap size={10}>
+          <Space wrap size={t.space.md}>
             <RepoPicker value={coords} onChange={setCoords} disabled={!canDecide} />
             <PRPicker
               coords={coords}
@@ -249,68 +252,83 @@ export default function FixPush() {
               预览就绪态
             </Button>
           </Space>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          <Typography.Text type="secondary" className="meta-sm">
             从任务详情跳转会带入坐标并自动预览；也可直接选择仓库坐标。
           </Typography.Text>
         </Space>
-      </Card>
+      </Panel>
 
       {!prev && (
-        <Row gutter={[12, 12]}>
+        <Row gutter={[t.space.md, t.space.md]}>
           {STEPS.map((s, i) => (
             <Col xs={24} md={8} key={s.title}>
-              <Card className="glass" size="small" style={{ height: '100%' }}>
-                <Space align="start" size={10}>
+              <Panel bodyStyle={{ padding: t.space.md }} style={{ height: '100%' }}>
+                <Space align="start" size={t.space.md}>
                   <span
+                    className="t-xs"
                     style={{
-                      flex: '0 0 22px', width: 22, height: 22, borderRadius: 11,
-                      display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700,
-                      color: '#0b1220', background: '#5b8def',
+                      flex: `0 0 ${t.space.xxl}px`,
+                      width: t.space.xxl,
+                      height: t.space.xxl,
+                      borderRadius: t.radius.xl,
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontWeight: t.weight.semibold,
+                      color: t.color.surface,
+                      background: t.color.accent,
                     }}
                   >
                     {i + 1}
                   </span>
                   <div>
                     <Typography.Text strong>{s.title}</Typography.Text>
-                    <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4, lineHeight: 1.55 }}>
+                    <div
+                      className="meta-sm"
+                      style={{ marginTop: t.space.xs, lineHeight: t.line.normal }}
+                    >
                       {s.desc}
                     </div>
                   </div>
                 </Space>
-              </Card>
+              </Panel>
             </Col>
           ))}
         </Row>
       )}
 
       {result && (
-        <Card
-          className="glass"
-          size="small"
-          style={{ marginBottom: 16 }}
+        <Panel
+          bodyStyle={{ padding: t.space.md }}
+          style={{ marginBottom: t.space.lg }}
           title={
             <Space>
               推送结果
-              <Tag color={OK_STATUS.has(result.status) ? 'success' : 'warning'}>{result.status}</Tag>
+              <Tag color={OK_STATUS.has(result.status) ? 'success' : 'warning'}>
+                {result.status}
+              </Tag>
             </Space>
           }
-          extra={result.task_id && (
-            <Button size="small" onClick={() => nav(`/tasks/${result.task_id}`)}>查看任务</Button>
-          )}
+          extra={
+            result.task_id && (
+              <Button size="small" onClick={() => nav(`/tasks/${result.task_id}`)}>
+                查看任务
+              </Button>
+            )
+          }
         >
-          <Space orientation="vertical" size={6}>
+          <Space orientation="vertical" size={t.space.sm}>
             <Typography.Text>{result.message}</Typography.Text>
-            <Typography.Text type="secondary" className="mono" style={{ fontSize: 12 }}>
-              task {result.task_id || '—'} · head {(result.head_sha || '').slice(0, 16) || '—'} · fix_status {result.fix_status || '—'}
+            <Typography.Text type="secondary" className="mono meta-sm">
+              task {result.task_id || '—'} · head {(result.head_sha || '').slice(0, 16) || '—'} ·
+              fix_status {result.fix_status || '—'}
             </Typography.Text>
           </Space>
-        </Card>
+        </Panel>
       )}
 
       <Spin spinning={busy}>
         {prev && (
-          <Card
-            className="glass"
+          <Panel
             title={
               <Space>
                 就绪态
@@ -323,13 +341,17 @@ export default function FixPush() {
             extra={
               <Space>
                 {knownTaskId && (
-                  <Button size="small" onClick={() => nav(`/tasks/${knownTaskId}`)}>任务详情</Button>
+                  <Button size="small" onClick={() => nav(`/tasks/${knownTaskId}`)}>
+                    任务详情
+                  </Button>
                 )}
-                <Button size="small" icon={<ReloadOutlined />} onClick={preview}>刷新</Button>
+                <Button size="small" icon={<ReloadOutlined />} onClick={preview}>
+                  刷新
+                </Button>
               </Space>
             }
           >
-            <Space wrap size={[8, 8]} style={{ marginBottom: 16 }}>
+            <Space wrap size={[t.space.sm, t.space.sm]} style={{ marginBottom: t.space.lg }}>
               {checks.map((c) => (
                 <Tag
                   key={c.label}
@@ -341,12 +363,14 @@ export default function FixPush() {
               ))}
             </Space>
 
-            <Row gutter={[24, 12]} style={{ marginBottom: 16 }}>
+            <Row gutter={[t.space.xxl, t.space.md]} style={{ marginBottom: t.space.lg }}>
               <Col xs={12} md={5}>
                 <Statistic
                   title="待审批高危票"
                   value={prev.pending_approvals ?? 0}
-                  styles={{ content: { color: prev.pending_approvals ? '#f0b429' : undefined } }}
+                  styles={{
+                    content: { color: prev.pending_approvals ? t.color.attention : undefined },
+                  }}
                 />
               </Col>
               <Col xs={24} md={19}>
@@ -355,9 +379,23 @@ export default function FixPush() {
                   column={{ xs: 1, md: 2 }}
                   colon={false}
                   items={[
-                    { key: 'task', label: '任务', children: <span className="mono">{knownTaskId || '—'}</span> },
-                    { key: 'head', label: 'head', children: <span className="mono">{(knownHead || '').slice(0, 16) || '—'}</span> },
-                    { key: 'fix', label: '修复状态', children: <Tag>{prev.fix_status || '—'}</Tag> },
+                    {
+                      key: 'task',
+                      label: '任务',
+                      children: <span className="mono">{knownTaskId || '—'}</span>,
+                    },
+                    {
+                      key: 'head',
+                      label: 'head',
+                      children: (
+                        <span className="mono">{(knownHead || '').slice(0, 16) || '—'}</span>
+                      ),
+                    },
+                    {
+                      key: 'fix',
+                      label: '修复状态',
+                      children: <Tag>{prev.fix_status || '—'}</Tag>,
+                    },
                     { key: 'mode', label: '推送模式', children: <Tag>{prev.mode || '—'}</Tag> },
                   ]}
                 />
@@ -372,7 +410,11 @@ export default function FixPush() {
               description={prev.message}
               action={
                 prev.pending_approvals > 0 ? (
-                  <Button size="small" icon={<AuditOutlined />} onClick={() => nav(approvalsLink())}>
+                  <Button
+                    size="small"
+                    icon={<AuditOutlined />}
+                    onClick={() => nav(approvalsLink())}
+                  >
                     去审批
                   </Button>
                 ) : undefined
@@ -380,18 +422,20 @@ export default function FixPush() {
             />
 
             {confirmable && (
-              <div style={{ marginTop: 16 }}>
-                <Row gutter={[16, 12]}>
+              <div style={{ marginTop: t.space.lg }}>
+                <Row gutter={[t.space.lg, t.space.md]}>
                   <Col xs={24} md={12}>
                     <Typography.Text type="secondary">task_id（来自预览，只读）</Typography.Text>
                     <Input className="mono" readOnly value={prev.task_id} />
                   </Col>
                   <Col xs={24} md={12}>
-                    <Typography.Text type="secondary">expected_remote_head（来自预览，只读）</Typography.Text>
+                    <Typography.Text type="secondary">
+                      expected_remote_head（来自预览，只读）
+                    </Typography.Text>
                     <Input className="mono" readOnly value={prev.head_sha} />
                   </Col>
                 </Row>
-                <Space style={{ marginTop: 16 }} wrap>
+                <Space style={{ marginTop: t.space.lg }} wrap>
                   <Popconfirm
                     title="确认推送？该操作不可撤销"
                     description="后端会再次校验审批票与 expected_remote_head；head 变更会拒绝。"
@@ -404,13 +448,13 @@ export default function FixPush() {
                       确认推送
                     </Button>
                   </Popconfirm>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  <Typography.Text type="secondary" className="meta-sm">
                     推送目标为当前 head 对应的修复分支；失败会返回明确状态。
                   </Typography.Text>
                 </Space>
               </div>
             )}
-          </Card>
+          </Panel>
         )}
       </Spin>
     </div>

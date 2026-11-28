@@ -1,31 +1,42 @@
 {
   "name": "argus-frontend",
   "private": true,
-  "version": "8.8.2",
+  "version": "9.0.0",
   "type": "module",
-  "description": "Argus 审查工作台（TypeScript + Ant Design 6 + Ant Design X）——受控变更 · AI 问答 · 资格门",
+  "description": "Argus 审查工作台（Umi 4 + Ant Design 6 + Ant Design X）——受控变更 · AI 问答 · 资格门",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "dev": "PORT=5177 max dev",
+    "build": "max build",
+    "setup": "max setup",
+    "postinstall": "max setup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "check:raw-values": "node scripts/check-raw-values.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
     "@ant-design/x": "^2.10.0",
     "@ant-design/x-markdown": "^2.1.0",
-    "antd": "^6.7.1",
+    "@umijs/max": "^4.7.41",
+    "antd": "^6.7.2",
     "dayjs": "^1.11.13",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.3"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.2",
+    "@eslint/js": "^9.39.5",
+    "@types/react": "^19.3.3",
     "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.9",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.10.1",
     "typescript": "~5.9.3",
-    "vite": "^7.1.9"
+    "typescript-eslint": "^8.74.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

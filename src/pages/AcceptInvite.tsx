@@ -1,36 +1,52 @@
-import { useState } from 'react'
 import { App, Button, Form, Input, Typography } from 'antd'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api } from '../api/client'
+import { useNavigate, useSearchParams } from '@umijs/max'
+import { api, errMsg } from '../api/client'
+import { useApi } from '../hooks/useApi'
+import { t } from '../theme/tokens'
+
+/** 居中注册卡宽度（与 Login 同节奏）。 */
+const CARD_MAX_W = 420
+/** 注册成功提示停留时长（ms），让用户看清账号名再跳登录。 */
+const NAV_DELAY_MS = 1200
 
 export default function AcceptInvite() {
   const [sp] = useSearchParams()
   const nav = useNavigate()
   const { message } = App.useApp()
-  const [busy, setBusy] = useState(false)
 
-  const onFinish = async (v: { token: string; username: string; password: string }) => {
-    setBusy(true)
-    try {
-      const res = await api.acceptInvite({
-        token: v.token.trim(),
-        username: v.username.trim(),
-        password: v.password,
-      })
+  const { run: accept, loading: busy } = useApi(api.acceptInvite, {
+    manual: true,
+    onSuccess: (res) => {
       message.success(`账号已创建：${res.username}（${res.role}）`)
-      setTimeout(() => nav('/login'), 1200)
-    } catch (e: any) {
-      message.error(e?.message || '接受邀请失败')
-    } finally {
-      setBusy(false)
-    }
+      setTimeout(() => nav('/login'), NAV_DELAY_MS)
+    },
+    onError: (e) => message.error(errMsg(e, '接受邀请失败')),
+  })
+
+  const onFinish = (v: { token: string; username: string; password: string }) => {
+    void accept({
+      token: v.token.trim(),
+      username: v.username.trim(),
+      password: v.password,
+    })
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
-      <div className="glass" style={{ width: '100%', maxWidth: 420, padding: '24px 24px 12px' }}>
-        <Typography.Title level={4} style={{ marginTop: 0 }}>接受邀请</Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+    <div
+      style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: t.space.xxl }}
+    >
+      <div
+        className="panel"
+        style={{
+          width: '100%',
+          maxWidth: CARD_MAX_W,
+          padding: `${t.space.xxl}px ${t.space.xxl}px ${t.space.md}px`,
+        }}
+      >
+        <Typography.Title level={4} style={{ marginTop: 0 }}>
+          接受邀请
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" className="t-xs">
           设置用户名与密码完成注册；邀请链接有效期有限，过期需联系管理员重新生成。
         </Typography.Paragraph>
         <Form

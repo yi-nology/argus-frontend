@@ -1,43 +1,52 @@
-import { useState } from 'react'
 import { Button, Form, Input, Typography, App } from 'antd'
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from '@umijs/max'
 import { useAuth } from '../auth/AuthContext'
+import { errMsg } from '../api/client'
+import { useApi } from '../hooks/useApi'
+import { t } from '../theme/tokens'
+
+/** 居中登录卡宽度（与 AcceptInvite 同节奏）。 */
+const CARD_MAX_W = 400
 
 export default function Login() {
   const { login } = useAuth()
   const nav = useNavigate()
   const [sp] = useSearchParams()
   const { message } = App.useApp()
-  const [busy, setBusy] = useState(false)
   const invite = sp.get('invite') || ''
 
-  const onFinish = async (v: { username: string; password: string }) => {
-    setBusy(true)
-    try {
-      await login(v.username.trim(), v.password)
+  const { run: submit, loading: busy } = useApi(login, {
+    manual: true,
+    onSuccess: () => {
       message.success('登录成功')
       nav('/dashboard')
-    } catch (e: any) {
-      message.error(e?.message || '登录失败')
-    } finally {
-      setBusy(false)
-    }
+    },
+    onError: (e) => message.error(errMsg(e, '登录失败')),
+  })
+
+  const onFinish = (v: { username: string; password: string }) => {
+    void submit(v.username.trim(), v.password)
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Typography.Title level={3} style={{ marginBottom: 4, letterSpacing: 1 }}>
+    <div
+      style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: t.space.xxl }}
+    >
+      <div style={{ width: '100%', maxWidth: CARD_MAX_W }}>
+        <div style={{ textAlign: 'center', marginBottom: t.space.xxl }}>
+          <Typography.Title level={3} style={{ marginBottom: t.space.xs }}>
             Argus
           </Typography.Title>
           <Typography.Text type="secondary">代码审查工作台</Typography.Text>
         </div>
 
-        <div className="glass" style={{ padding: '24px 24px 12px' }}>
+        <div
+          className="panel"
+          style={{ padding: `${t.space.xxl}px ${t.space.xxl}px ${t.space.md}px` }}
+        >
           {invite && (
-            <Typography.Paragraph type="warning" style={{ fontSize: 12 }}>
+            <Typography.Paragraph type="warning" className="t-xs">
               检测到邀请链接，请先在「接受邀请」页创建账号。
             </Typography.Paragraph>
           )}

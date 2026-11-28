@@ -1,52 +1,39 @@
-import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Col, Empty, Row, Statistic, Tag, Typography, Spin } from 'antd'
+import { Button, Col, Row, Spin, Typography } from 'antd'
+import { useNavigate } from '@umijs/max'
+import { api, type StatsOverview, type TaskRow } from '../api/client'
 import {
-  RocketOutlined,
-  CheckCircleOutlined,
-  CommentOutlined,
-  CloseCircleOutlined,
-  FireOutlined,
-  EyeInvisibleOutlined,
-  MinusCircleOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import { api, type TaskRow } from '../api/client'
-import { StatCard, StatusDot } from '../components/Widgets'
-import { VERDICT_COLOR, VERDICT_LABELS, fmtTime, kindLabel } from '../constants/vocab'
+  EmptyHint,
+  LoadError,
+  MetaLine,
+  Panel,
+  StatCard,
+  StatusDot,
+  VerdictBadge,
+} from '../components/Widgets'
+import { fmtNum, fmtTime, kindLabel } from '../constants/vocab'
 import { useAuth } from '../auth/AuthContext'
+import { useApi } from '../hooks/useApi'
+import { t } from '../theme/tokens'
+
+/** 任务 id 紧凑展示长度（全站统一，不再散落 14/16/20）。 */
+const ID_LEN = 12
 
 export default function Dashboard() {
   const { user } = useAuth()
   const nav = useNavigate()
-  const [stats, setStats] = useState<any>(null)
-  const [tasks, setTasks] = useState<TaskRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState('')
-
-  const load = async () => {
-    setLoading(true)
-    setErr('')
-    try {
-      const [s, t] = await Promise.all([
+  const { data, loading, errorText, refresh } = useApi(
+    async () => {
+      const [stats, tasks] = await Promise.all([
         api.statsOverview({ days: 30 }),
         api.listTasks({ limit: 8 }),
       ])
-      setStats(s)
-      setTasks(Array.isArray(t) ? t : ((t as any).tasks ?? []))
-    } catch (e: any) {
-      setErr(e?.message || '概览加载失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const verdicts = stats?.verdicts || {}
+      return { stats, tasks }
+    },
+    { errorFallback: '概览加载失败' },
+  )
+  const stats: StatsOverview | null = data?.stats ?? null
+  const tasks: TaskRow[] = data?.tasks ?? []
+  const verdicts = stats?.verdicts
 
   return (
     <div className="page">
@@ -57,123 +44,133 @@ export default function Dashboard() {
         近 30 天审查态势。所有写操作（合并 / 推送 / 审批）都需要预览确认，失败会给出明确原因。
       </Typography.Paragraph>
 
-      {err && (
-        <Alert
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
-          title={err}
-          action={<Button size="small" onClick={load}>重试</Button>}
-        />
-      )}
+      <LoadError error={errorText} onRetry={() => void refresh()} />
 
       <Spin spinning={loading}>
         <Row gutter={[16, 16]}>
           <Col xs={12} md={6}>
-            <StatCard label="审查任务（已完成）" value={stats?.tasks_done ?? '—'} icon={<RocketOutlined />} />
+            <StatCard
+              label="审查任务（已完成）"
+              value={fmtNum(stats?.tasks_done ?? null)}
+              hint="窗口 30 天"
+            />
           </Col>
           <Col xs={12} md={6}>
             <StatCard
               label="通过"
-              value={verdicts.approve ?? '—'}
-              icon={<CheckCircleOutlined />}
-              accent="#34d399"
+              value={fmtNum(verdicts?.approve ?? null)}
+              tone="success"
+              hint="verdict = approve"
             />
           </Col>
           <Col xs={12} md={6}>
             <StatCard
               label="建议修改"
-              value={verdicts.comment ?? '—'}
-              icon={<CommentOutlined />}
-              accent="#f0b429"
+              value={fmtNum(verdicts?.comment ?? null)}
+              tone="attention"
+              hint="verdict = comment"
             />
           </Col>
           <Col xs={12} md={6}>
             <StatCard
               label="需修改"
-              value={verdicts.request_changes ?? '—'}
-              icon={<CloseCircleOutlined />}
-              accent="#f07178"
+              value={fmtNum(verdicts?.request_changes ?? null)}
+              tone="danger"
+              hint="verdict = request_changes"
             />
           </Col>
         </Row>
       </Spin>
 
-      <Card
-        className="glass"
-        size="small"
-        style={{ marginTop: 16 }}
-        title={<span><CommentOutlined /> 回复控制（30 天）</span>}
-        extra={<Button type="link" onClick={() => nav('/settings/repos')}>按仓设置</Button>}
+      <Panel
+        className="section"
+        title="回复控制（30 天）"
+        extra={
+          <Button type="link" onClick={() => nav('/settings/repos')}>
+            按仓设置
+          </Button>
+        }
       >
         <Row gutter={[16, 8]}>
-          <Col xs={8}>
-            <Statistic
-              title={<span><ClockCircleOutlined /> 节流跳过回帖</span>}
-              value={stats?.reply_throttled ?? 0}
-              suffix="次"
-            />
+          <Col xs={24} md={8}>
+            <MetaLine size="xs">节流跳过回帖</MetaLine>
+            <div className="num t-lg">{fmtNum(stats?.reply_throttled ?? null)} 次</div>
           </Col>
-          <Col xs={8}>
-            <Statistic
-              title={<span><EyeInvisibleOutlined /> 低于级别地板静默</span>}
-              value={stats?.silenced_floor ?? 0}
-              suffix="条"
-            />
+          <Col xs={24} md={8}>
+            <MetaLine size="xs">低于级别地板静默</MetaLine>
+            <div className="num t-lg">{fmtNum(stats?.silenced_floor ?? null)} 条</div>
           </Col>
-          <Col xs={8}>
-            <Statistic
-              title={<span><MinusCircleOutlined /> 超出数量上限静默</span>}
-              value={stats?.silenced_cap ?? 0}
-              suffix="条"
-            />
+          <Col xs={24} md={8}>
+            <MetaLine size="xs">超出数量上限静默</MetaLine>
+            <div className="num t-lg">{fmtNum(stats?.silenced_cap ?? null)} 条</div>
           </Col>
         </Row>
-      </Card>
+      </Panel>
 
-      <Card
-        className="glass"
-        style={{ marginTop: 20 }}
-        title={<span><FireOutlined style={{ color: '#f0b429', marginRight: 6 }} />最近任务</span>}
-        extra={<Button type="link" onClick={() => nav('/tasks')}>查看全部</Button>}
+      <Panel
+        className="section"
+        title="最近任务"
+        extra={
+          <Button type="link" onClick={() => nav('/tasks')}>
+            查看全部
+          </Button>
+        }
+        bodyStyle={{ paddingTop: t.space.sm, paddingBottom: t.space.sm }}
       >
         {tasks.length === 0 && !loading ? (
-          <Empty description="还没有审查任务" style={{ padding: '16px 0' }}>
-            <Button type="primary" onClick={() => nav('/tasks')}>创建第一个审查</Button>
-          </Empty>
+          <EmptyHint
+            description="还没有审查任务"
+            action={
+              <Button type="primary" onClick={() => nav('/tasks')}>
+                创建第一个审查
+              </Button>
+            }
+          />
         ) : (
           <div>
-            {tasks.map((t) => (
-              <div
-                key={t.id || t.task_id}
-                onClick={() => nav(`/tasks/${t.id || t.task_id}`)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
-                  padding: '10px 8px', borderRadius: 8, borderBottom: '1px solid rgba(148,163,184,0.08)',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <StatusDot status={t.status} />
-                    <span className="mono" style={{ fontSize: 12, opacity: 0.7 }}>
-                      {(t.id || t.task_id || '').slice(0, 14)}
-                    </span>
-                    <span style={{ fontSize: 13 }}>
-                      {t.platform}/{t.owner}/{t.repo}#{t.number}
-                    </span>
+            {tasks.map((task) => {
+              const id = task.id || task.task_id || ''
+              return (
+                <div
+                  key={id}
+                  className="list-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => nav(`/tasks/${id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      nav(`/tasks/${id}`)
+                    }
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: t.space.sm,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <StatusDot status={task.status} />
+                      <span className="mono meta-sm">{id.slice(0, ID_LEN)}</span>
+                      <span className="t-sm">
+                        {task.platform}/{task.owner}/{task.repo}#{task.number}
+                      </span>
+                    </div>
+                    <MetaLine size="xs">
+                      head {(task.head_sha || '').slice(0, 10) || '—'} · {kindLabel(task.kind)} ·{' '}
+                      {fmtTime(task.updated_at)}
+                    </MetaLine>
                   </div>
-                  <div className="mono" style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
-                    head {(t.head_sha || '').slice(0, 10) || '—'} · {kindLabel(t.kind)} · {fmtTime(t.updated_at)}
-                  </div>
+                  <VerdictBadge verdict={task.verdict} />
                 </div>
-                <Tag color={VERDICT_COLOR[t.verdict || ''] || 'default'}>
-                  {VERDICT_LABELS[t.verdict || ''] || t.verdict || '—'}
-                </Tag>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
-      </Card>
+      </Panel>
     </div>
   )
 }

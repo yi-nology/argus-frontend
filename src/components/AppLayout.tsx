@@ -17,10 +17,11 @@ import {
   AppstoreOutlined,
   MenuOutlined,
 } from '@ant-design/icons'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from '@umijs/max'
 import { useAuth } from '../auth/AuthContext'
-import { palette } from '../theme/theme'
+import { t } from '../theme/tokens'
 import type { PermissionBits } from '../api/client'
+import type { MenuProps } from 'antd'
 
 /**
  * 侧栏用固定列 + inline Menu，**不用 Layout.Sider**：
@@ -35,22 +36,55 @@ interface NavItem {
   label: string
   /** 可见所需权限（缺省=所有登录用户可见，与后端 read 档对齐）。 */
   perm?: keyof PermissionBits
+  /** 导航分组。 */
+  group: 'workspace' | 'review' | 'govern' | 'admin'
 }
 
 const NAV: NavItem[] = [
-  { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
-  { key: '/quality', icon: <BarChartOutlined />, label: '质量运营' },
-  { key: '/tasks', icon: <RocketOutlined />, label: '审查任务' },
-  { key: '/findings', icon: <BugOutlined />, label: '意见治理' },
-  { key: '/approvals', icon: <SafetyCertificateOutlined />, label: '修复审批', perm: 'decide_review' },
-  { key: '/merges', icon: <MergeCellsOutlined />, label: '合并资格门', perm: 'decide_review' },
-  { key: '/fix-push', icon: <SendOutlined />, label: '受控推送', perm: 'decide_review' },
-  { key: '/assistant', icon: <QuestionCircleOutlined />, label: '审查问答' },
-  { key: '/agents', icon: <AppstoreOutlined />, label: '插件能力' },
-  { key: '/settings/repos', icon: <ControlOutlined />, label: '仓库设置' },
-  { key: '/invites', icon: <UserAddOutlined />, label: '邀请成员', perm: 'manage_membership' },
-  { key: '/me', icon: <IdcardOutlined />, label: '我的权限' },
+  { key: '/dashboard', icon: <DashboardOutlined />, label: '总览', group: 'workspace' },
+  { key: '/quality', icon: <BarChartOutlined />, label: '质量运营', group: 'workspace' },
+  { key: '/tasks', icon: <RocketOutlined />, label: '审查任务', group: 'review' },
+  { key: '/assistant', icon: <QuestionCircleOutlined />, label: '审查问答', group: 'review' },
+  { key: '/agents', icon: <AppstoreOutlined />, label: '插件能力', group: 'review' },
+  { key: '/findings', icon: <BugOutlined />, label: '意见治理', group: 'govern' },
+  {
+    key: '/approvals',
+    icon: <SafetyCertificateOutlined />,
+    label: '修复审批',
+    perm: 'decide_review',
+    group: 'govern',
+  },
+  {
+    key: '/merges',
+    icon: <MergeCellsOutlined />,
+    label: '合并资格门',
+    perm: 'decide_review',
+    group: 'govern',
+  },
+  {
+    key: '/fix-push',
+    icon: <SendOutlined />,
+    label: '受控推送',
+    perm: 'decide_review',
+    group: 'govern',
+  },
+  { key: '/settings/repos', icon: <ControlOutlined />, label: '仓库设置', group: 'admin' },
+  {
+    key: '/invites',
+    icon: <UserAddOutlined />,
+    label: '邀请成员',
+    perm: 'manage_membership',
+    group: 'admin',
+  },
+  { key: '/me', icon: <IdcardOutlined />, label: '我的权限', group: 'admin' },
 ]
+
+const GROUP_LABELS: Record<NavItem['group'], string> = {
+  workspace: '工作台',
+  review: '审查',
+  govern: '治理',
+  admin: '管理',
+}
 
 /** 当前路径命中的菜单项（/tasks/:id → /tasks；取最长前缀匹配）。 */
 function selectedKey(pathname: string): string {
@@ -74,20 +108,36 @@ export default function AppLayout() {
   const compact = screens.md === false
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const items = NAV.filter((n) => {
+  const visible = NAV.filter((n) => {
     if (!n.perm) return true
     // 静态超管 token（无 permissions 投影）默认全可见；服务端仍二次判定。
     if (!user?.permissions) return true
     return can(n.perm)
-  }).map((n) => ({
-    key: n.key,
-    icon: n.icon,
-    label: n.label,
-    onClick: () => {
-      nav(n.key)
-      setDrawerOpen(false)
+  })
+
+  const items: MenuProps['items'] = (['workspace', 'review', 'govern', 'admin'] as const).flatMap(
+    (g) => {
+      const group = visible.filter((n) => n.group === g)
+      if (group.length === 0) return []
+      return [
+        { type: 'divider' as const },
+        {
+          type: 'group' as const,
+          label: <span className="meta-sm">{GROUP_LABELS[g]}</span>,
+          key: `grp-${g}`,
+        },
+        ...group.map((n) => ({
+          key: n.key,
+          icon: n.icon,
+          label: n.label,
+          onClick: () => {
+            nav(n.key)
+            setDrawerOpen(false)
+          },
+        })),
+      ]
     },
-  }))
+  )
 
   const menu = (
     <Menu
@@ -100,7 +150,7 @@ export default function AppLayout() {
   )
 
   const newTaskBtn = (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: t.space.lg }}>
       <Button
         block
         type="primary"
@@ -116,16 +166,15 @@ export default function AppLayout() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+    <div style={{ minHeight: '100vh', background: t.color.canvas }}>
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          padding: compact ? '0 12px' : '0 24px',
-          background: 'rgba(11,15,22,0.86)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(148,163,184,0.12)',
+          gap: t.space.md,
+          padding: compact ? `0 ${t.space.md}px` : `0 ${t.space.xxl}px`,
+          background: t.color.surface,
+          borderBottom: `1px solid ${t.color.borderMuted}`,
           position: 'sticky',
           top: 0,
           zIndex: 20,
@@ -136,12 +185,12 @@ export default function AppLayout() {
           <Button
             type="text"
             aria-label="打开导航"
-            icon={<MenuOutlined style={{ fontSize: 18, color: palette.text }} />}
+            icon={<MenuOutlined style={{ fontSize: t.font.lg, color: t.color.text }} />}
             onClick={() => setDrawerOpen(true)}
             style={{ flex: '0 0 auto' }}
           />
         )}
-        <Typography.Text strong style={{ fontSize: 17, letterSpacing: 0.4 }}>
+        <Typography.Text strong style={{ fontSize: t.font.lg, letterSpacing: 0.2 }}>
           Argus
         </Typography.Text>
         {!compact && <Tag style={{ marginInlineEnd: 0 }}>审查工作台</Tag>}
@@ -170,10 +219,10 @@ export default function AppLayout() {
           >
             <Avatar
               style={{
-                background: palette.cyan,
+                background: t.color.accent,
                 cursor: 'pointer',
-                color: '#0b1220',
-                fontWeight: 600,
+                color: t.color.surface,
+                fontWeight: t.weight.semibold,
               }}
             >
               {(user?.username || 'U').slice(0, 1).toUpperCase()}
@@ -186,17 +235,17 @@ export default function AppLayout() {
         {!compact && (
           <aside
             style={{
-              width: 200,
-              minWidth: 200,
-              flex: '0 0 200px',
+              width: 220,
+              minWidth: 220,
+              flex: '0 0 220px',
               position: 'sticky',
               top: 56,
               alignSelf: 'flex-start',
               height: 'calc(100vh - 56px)',
               overflowY: 'auto',
-              background: 'rgba(11,15,22,0.55)',
-              borderRight: '1px solid rgba(148,163,184,0.1)',
-              paddingTop: 12,
+              background: t.color.surface,
+              borderRight: `1px solid ${t.color.borderMuted}`,
+              paddingTop: t.space.md,
             }}
           >
             {menu}
@@ -208,10 +257,10 @@ export default function AppLayout() {
           placement="left"
           open={compact && drawerOpen}
           onClose={() => setDrawerOpen(false)}
-          size={240}
-          styles={{ body: { padding: 0, background: 'rgba(11,15,22,0.98)' } }}
+          size={260}
+          styles={{ body: { padding: 0, background: t.color.surface } }}
         >
-          <div style={{ paddingTop: 12 }}>{menu}</div>
+          <div style={{ paddingTop: t.space.md }}>{menu}</div>
           {newTaskBtn}
         </Drawer>
 

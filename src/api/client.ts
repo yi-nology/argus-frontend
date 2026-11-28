@@ -3,7 +3,7 @@
  * 信封 {code,data,message,trace_id}；Bearer 会话/静态 token。
  */
 
-const API_BASE = (import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
+const API_BASE = (__ARGUS_API_BASE__ || '/api').replace(/\/$/, '')
 
 const TOKEN_KEY = 'argus.token'
 const USER_KEY = 'argus.user'
@@ -71,8 +71,31 @@ function tsText(v: unknown): string | undefined {
   return undefined
 }
 
-function normalizeTask(raw: any): TaskRow {
-  if (!raw) return raw
+/** 服务端任务行的线上形态：thrift camelCase 与 snake_case 混流，边界处归一。 */
+type WireTask = {
+  taskId?: string
+  task_id?: string
+  id?: string
+  createdAt?: string | number
+  created_at?: string | number
+  updatedAt?: string | number
+  updated_at?: string | number
+  headSha?: string
+  head_sha?: string
+  fixStatus?: string
+  fix_status?: string
+  tokensUsed?: number
+  tokens_used?: number
+  replyState?: string
+  reply_state?: string
+  silencedFloor?: number
+  silenced_floor?: number
+  silencedCap?: number
+  silenced_cap?: number
+} & Partial<TaskRow>
+
+function normalizeTask(raw: WireTask | null | undefined): TaskRow {
+  if (!raw) return (raw ?? {}) as TaskRow
   const id = raw.taskId ?? raw.task_id ?? raw.id
   const created = tsText(raw.createdAt ?? raw.created_at)
   return {
@@ -107,6 +130,72 @@ export interface FindingRow {
   regret_count?: number
   first_seen_at?: number
   last_seen_at?: number
+  /** 增量重审（G1）：open=本轮复现 / stale=本轮未复现（待人工确认，不等于已修复）。 */
+  staleness?: string
+  /** 最近一次复现该意见的审查轮 head SHA。 */
+  anchor_sha?: string
+}
+
+/** 按仓聚合（storage.RepoStats；GET /stats/overview 的 repos[] 行）。 */
+/** GET /findings 的计数块。 */
+export interface FindingCounts {
+  total: number
+  open: number
+  suppressed: number
+  /** 增量重审（G1）：本轮未复现、待人工确认的条数。 */
+  stale?: number
+}
+
+export interface RepoStatsRow {
+  platform: string
+  owner: string
+  repo: string
+  tasks_done: number
+  verdict_approve: number
+  verdict_comment: number
+  verdict_request_changes: number
+  tokens_used: number
+  findings_suppressed: number
+  reply_throttled: number
+  silenced_floor: number
+  silenced_cap: number
+}
+
+/** GET /stats/overview（service_impl_core.go 聚合面）。 */
+export interface StatsOverview {
+  window_days: number
+  generated_at: string
+  repos: RepoStatsRow[]
+  repo_count: number
+  tasks_done: number
+  verdicts: { approve: number; comment: number; request_changes: number }
+  tokens_used: number
+  findings_suppressed: number
+  reply_throttled: number
+  silenced_floor: number
+  silenced_cap: number
+}
+
+/** 月度 token 账本行（storage.RepoTokenUsage）。 */
+export interface RepoTokenUsage {
+  platform: string
+  owner: string
+  repo: string
+  tokens: number
+  tasks: number
+}
+
+/** GET /usage/monthly（三账本：quota=done / real=实销 / reserved=在途预留）。 */
+export interface UsageMonthly {
+  month: string
+  total: number
+  budget: number
+  repos: RepoTokenUsage[]
+  real_total: number
+  real_budget: number
+  real_repos: RepoTokenUsage[]
+  reserved_total: number
+  reserved_repos: RepoTokenUsage[]
 }
 
 export interface GateCheck {
@@ -140,6 +229,26 @@ export interface FixTicket {
   reason?: string
   created_at: number
   decided_at?: number
+}
+
+/** 受控推送就绪态预览（GET /fix-push/preview）。 */
+export interface FixPushPreview {
+  task_id?: string
+  head_sha?: string
+  fix_status?: string
+  ready: boolean
+  message: string
+  pending_approvals: number
+  mode?: string
+}
+
+/** 受控推送确认结果（POST /fix-push/confirm）。 */
+export interface FixPushResult {
+  status: string
+  message: string
+  task_id?: string
+  head_sha?: string
+  fix_status?: string
 }
 
 /** 实例成员（GET /auth/members，v8.8.0；admin 面，无凭证字段）。 */
@@ -258,9 +367,25 @@ export class ApiError extends Error {
   }
 }
 
+/** 把 unknown 异常收窄为 ApiError（页面统一 `catch (e) { ... }` 后调用）。 */
+export function isApiError(e: unknown): e is ApiError {
+  return e instanceof ApiError
+}
+
+/** 异常 → 可展示文案（避免各页手写 `e?.message || '...'` 的 any 断言）。 */
+export function errMsg(e: unknown, fallback: string): string {
+  if (isApiError(e)) return e.message
+  if (e instanceof Error && e.message) return e.message
+  return fallback
+}
+
 async function request<T>(
   path: string,
-  opts: { method?: string; body?: unknown; query?: Record<string, string | number | undefined> } = {},
+  opts: {
+    method?: string
+    body?: unknown
+    query?: Record<string, string | number | boolean | undefined | null>
+  } = {},
 ): Promise<T> {
   const url = new URL(API_BASE + path, window.location.origin)
   if (opts.query) {
@@ -279,20 +404,21 @@ async function request<T>(
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   })
   const text = await res.text()
-  let json: any = null
+  let json: unknown = null
   try {
     json = text ? JSON.parse(text) : null
   } catch {
     /* 非 JSON */
   }
+  const payload = json as { code?: number; data?: unknown; message?: string } | null
   if (!res.ok) {
-    throw new ApiError(res.status, json?.code, json?.message || text || res.statusText)
+    throw new ApiError(res.status, payload?.code, payload?.message || text || res.statusText)
   }
-  if (json && typeof json === 'object' && 'code' in json && 'data' in json) {
-    if (json.code !== 0 && json.code !== 200) {
-      throw new ApiError(res.status, json.code, json.message || '请求失败')
+  if (payload && typeof payload === 'object' && 'code' in payload && 'data' in payload) {
+    if (payload.code !== 0 && payload.code !== 200) {
+      throw new ApiError(res.status, payload.code, payload.message || '请求失败')
     }
-    return json.data as T
+    return payload.data as T
   }
   return json as T
 }
@@ -323,15 +449,19 @@ export const api = {
     kind?: string
     q?: string
   }) => {
-    const res = await request<{ tasks?: TaskRow[] } | TaskRow[]>('/tasks', { query: query as any })
+    const res = await request<{ tasks?: TaskRow[] } | TaskRow[]>('/tasks', { query: query })
     const arr = Array.isArray(res) ? res : (res?.tasks ?? [])
     return arr.map(normalizeTask)
   },
-  getTask: async (id: string) => normalizeTask(await request<TaskRow>(`/tasks/${encodeURIComponent(id)}`)),
+  getTask: async (id: string) =>
+    normalizeTask(await request<TaskRow>(`/tasks/${encodeURIComponent(id)}`)),
   getTaskStages: (id: string) =>
-    request<{ task_id?: string; status?: string; verdict?: string; stages?: { stage: string; done: boolean }[] }>(
-      `/tasks/${encodeURIComponent(id)}/stages`,
-    ),
+    request<{
+      task_id?: string
+      status?: string
+      verdict?: string
+      stages?: { stage: string; done: boolean }[]
+    }>(`/tasks/${encodeURIComponent(id)}/stages`),
   createTask: (payload: {
     kind?: number
     platform: string
@@ -344,8 +474,8 @@ export const api = {
       body: payload,
     }),
   statsOverview: (query?: { days?: number; platform?: string; owner?: string; repo?: string }) =>
-    request<any>('/stats/overview', { query: query as any }),
-  usageMonthly: () => request<any>('/usage/monthly'),
+    request<StatsOverview>('/stats/overview', { query: query }),
+  usageMonthly: () => request<UsageMonthly>('/usage/monthly'),
   /** 控制台下拉选项单源（platforms/kinds/statuses/repos；v8.7.0）。 */
   consoleOptions: () => request<ConsoleOptions>('/console/options'),
   /** 实例成员清单（admin；v8.8.0）。 */
@@ -355,18 +485,23 @@ export const api = {
   /** 插件清单（可选仓库三元组；三参全传附 .reviewagents.yaml 生效视图）。 */
   listAgents: (query?: { platform?: string; owner?: string; repo?: string }) =>
     request<{ agents?: AgentManifest[]; repo_config?: RepoConfigView }>('/agents', {
-      query: query as any,
+      query: query,
     }),
   /** 仓库分支清单 + 默认分支（v8.8.0）。 */
   repoBranches: (query: { platform: string; owner: string; repo: string }) =>
-    request<RepoBranches>('/repos/branches', { query: query as any }),
+    request<RepoBranches>('/repos/branches', { query: query }),
   /** 仓库 PR/MR 列表（v8.8.1；默认 opened，供 PR 号下拉）。 */
-  repoCRs: (query: { platform: string; owner: string; repo: string; state?: string; limit?: number }) =>
-    request<{ items?: RepoCR[] }>('/repos/crs', { query: query as any }),
+  repoCRs: (query: {
+    platform: string
+    owner: string
+    repo: string
+    state?: string
+    limit?: number
+  }) => request<{ items?: RepoCR[] }>('/repos/crs', { query: query }),
 
   listFixApprovals: (query: { platform: string; owner: string; repo: string; number: string }) =>
     request<{ tickets: FixTicket[]; pending_count?: number; head_sha?: string }>('/fix-approvals', {
-      query: query as any,
+      query: query,
     }),
   decideFixApproval: (payload: { id: string; decision: string; reason?: string }) =>
     request<{ id: string; status: string; changed: boolean; message?: string }>(
@@ -375,7 +510,7 @@ export const api = {
     ),
 
   mergeEligibility: (query: { platform: string; owner: string; repo: string; number: string }) =>
-    request<{ eligibility: MergeEligibility }>('/merges/eligibility', { query: query as any }),
+    request<{ eligibility: MergeEligibility }>('/merges/eligibility', { query: query }),
   mergePreview: (payload: { platform: string; owner: string; repo: string; number: string }) =>
     request<{
       op_id: string
@@ -396,20 +531,9 @@ export const api = {
     }),
 
   fixPushPreview: (query: { platform: string; owner: string; repo: string; number: string }) =>
-    request<{
-      task_id?: string
-      head_sha?: string
-      fix_status?: string
-      ready: boolean
-      message: string
-      pending_approvals: number
-      mode?: string
-    }>('/fix-push/preview', { query: query as any }),
+    request<FixPushPreview>('/fix-push/preview', { query: query }),
   fixPushConfirm: (payload: { task_id: string; expected_remote_head: string }) =>
-    request<{ task_id: string; status: string; message: string; head_sha?: string; fix_status?: string }>(
-      '/fix-push/confirm',
-      { method: 'POST', body: payload },
-    ),
+    request<FixPushResult>('/fix-push/confirm', { method: 'POST', body: payload }),
 
   // Q&A（Assistant 页；与 MCP ask_argus 同源 ReviewQA）
   ask: (payload: {
@@ -426,12 +550,11 @@ export const api = {
   askLatest: (query: { platform: string; owner: string; repo: string; number: string }) =>
     request<{ ok: boolean; answer?: string; review?: Record<string, string>; message: string }>(
       '/ask/review',
-      { query: query as any },
+      { query: query },
     ),
 
   // ---- 仓库设置（/repo-settings；写档 admin，仓库维度授权） ----
-  listRepoSettings: () =>
-    request<{ settings?: RepoSettingRow[] }>('/repo-settings'),
+  listRepoSettings: () => request<{ settings?: RepoSettingRow[] }>('/repo-settings'),
   getRepoSettings: (platform: string, owner: string, repo: string) =>
     request<RepoSettingRow>(
       `/repo-settings/${encodeURIComponent(platform)}/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
@@ -448,23 +571,33 @@ export const api = {
     ),
 
   // ---- 意见治理（/findings）：清单 read 档，抑制/恢复 admin 档 ----
-  listFindings: (query: { platform: string; owner: string; repo: string; status?: string; limit?: number }) =>
+  listFindings: (query: {
+    platform: string
+    owner: string
+    repo: string
+    status?: string
+    limit?: number
+  }) =>
     request<{
       findings?: FindingRow[]
-      counts?: { total: number; open: number; suppressed: number }
+      counts?: FindingCounts
       /** v8.5.2：严重度分布（仓内全量，非当前页）。 */
       severity_counts?: Record<string, number>
       /** v8.5.2：噪声最高文件（按出现次数降序，最多 10 条）。 */
       top_files?: { file: string; total: number; suppressed: number }[]
       limit?: number
-    }>('/findings', { query: query as any }),
+    }>('/findings', { query: query }),
   suppressFinding: (payload: {
     platform: string
     owner: string
     repo: string
     number: string
     fingerprint: string
-  }) => request<{ matched: boolean; fingerprint: string }>('/findings/suppress', { method: 'POST', body: payload }),
+  }) =>
+    request<{ matched: boolean; fingerprint: string }>('/findings/suppress', {
+      method: 'POST',
+      body: payload,
+    }),
   restoreFinding: (payload: {
     platform: string
     owner: string

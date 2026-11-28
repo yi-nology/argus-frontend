@@ -1,83 +1,33 @@
 import { App as AntApp, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { AuthProvider, useAuth } from './auth/AuthContext'
-import { antdTheme } from './theme/theme'
-import AppLayout from './components/AppLayout'
-import Login from './pages/Login'
-import AcceptInvite from './pages/AcceptInvite'
-import Dashboard from './pages/Dashboard'
-import Quality from './pages/Quality'
-import Tasks from './pages/Tasks'
-import TaskDetail from './pages/TaskDetail'
-import Approvals from './pages/Approvals'
-import Merges from './pages/Merges'
-import FixPush from './pages/FixPush'
-import Assistant from './pages/Assistant'
-import Agents from './pages/Agents'
-import RepoSettings from './pages/RepoSettings'
-import Findings from './pages/Findings'
-import Invites from './pages/Invites'
-import Me from './pages/Me'
+import { XProvider } from '@ant-design/x'
 import type { ReactNode } from 'react'
+import { AuthProvider } from './auth/AuthContext'
+import ErrorBoundary from './components/ErrorBoundary'
+import { themeFor } from './theme/theme'
+import { useThemeMode } from './theme/useThemeMode'
+import './theme/global.css'
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth()
-  const loc = useLocation()
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <span style={{ fontSize: 15, letterSpacing: 3, color: '#9aa8bc' }}>Loading…</span>
-      </div>
-    )
-  }
-  if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
-  return <>{children}</>
-}
-
-function Shell() {
+/**
+ * 全局 Provider 栈（Umi rootContainer）：主题 → antd App → XProvider → 错误边界 → 会话。
+ * 主题模式是运行时状态（跟随系统 prefers-color-scheme），所以包一层组件用 hook。
+ * XProvider 让 @ant-design/x 组件（Bubble/Sender/ThoughtChain…）继承 antd 主题变量。
+ */
+function Providers({ children }: { children: ReactNode }) {
+  const mode = useThemeMode()
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/accept-invite" element={<AcceptInvite />} />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <AppLayout />
-          </RequireAuth>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="quality" element={<Quality />} />
-        <Route path="tasks" element={<Tasks />} />
-        <Route path="tasks/:taskId" element={<TaskDetail />} />
-        <Route path="findings" element={<Findings />} />
-        <Route path="approvals" element={<Approvals />} />
-        <Route path="merges" element={<Merges />} />
-        <Route path="fix-push" element={<FixPush />} />
-        <Route path="assistant" element={<Assistant />} />
-        <Route path="agents" element={<Agents />} />
-        <Route path="settings/repos" element={<RepoSettings />} />
-        <Route path="invites" element={<Invites />} />
-        <Route path="me" element={<Me />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-  )
-}
-
-export default function App() {
-  return (
-    <ConfigProvider theme={antdTheme} locale={zhCN}>
+    <ConfigProvider theme={themeFor(mode)} locale={zhCN}>
       <AntApp>
-        <BrowserRouter>
-          <AuthProvider>
-            <Shell />
-          </AuthProvider>
-        </BrowserRouter>
+        <XProvider>
+          <ErrorBoundary area="Argus 工作台">
+            <AuthProvider>{children}</AuthProvider>
+          </ErrorBoundary>
+        </XProvider>
       </AntApp>
     </ConfigProvider>
   )
+}
+
+export function rootContainer(container: React.ReactNode) {
+  return <Providers>{container}</Providers>
 }

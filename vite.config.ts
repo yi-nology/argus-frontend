@@ -24,7 +24,9 @@ export default defineConfig({
       output: {
         manualChunks: {
           antd: ['antd', '@ant-design/icons'],
-          x: ['@ant-design/x', '@ant-design/x-markdown'],
+          // 刻意不钉 @ant-design/x / x-markdown：对象式 manualChunks 会把整包
+          // 强塞进一个 chunk 并牵连入口 modulepreload（218KB 首屏白载实锤）；
+          // 两者仅被 lazy 的 Assistant/TaskDetail 消费，交给 Rollup 按需分块。
           react: ['react', 'react-dom', 'react-router-dom'],
         },
       },

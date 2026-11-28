@@ -26,10 +26,12 @@ export default defineConfig({
     __ARGUS_API_BASE__: process.env.VITE_API_BASE || '/api',
   },
   // 开发代理：/api/<path> → argus-service/<path>（剥前缀，与 nginx 生产语义一致）。
+  // changeOrigin 必须为 false：webpack-dev-server 的代理在 true 时会把 Origin 头
+  // 改写成 target（http://127.0.0.1:8899），后端 CORS 白名单不认 → 所有写操作 403。
   proxy: {
     '/api': {
       target: process.env.VITE_API_PROXY || 'http://127.0.0.1:8899',
-      changeOrigin: true,
+      changeOrigin: false,
       pathRewrite: { '^/api': '' },
     },
   },

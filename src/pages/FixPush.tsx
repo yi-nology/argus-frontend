@@ -208,7 +208,7 @@ export default function FixPush() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message="当前账号无推送裁定权限"
+          title="当前账号无推送裁定权限"
           description={`受控推送属于 maintainer 角色；当前角色为 ${user?.role || '—'}。`}
         />
       )}
@@ -217,7 +217,7 @@ export default function FixPush() {
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
-          message="推送预览被拒绝（403）"
+          title="推送预览被拒绝（403）"
           description="该接口要求 admin 档 + 业务裁定角色（maintainer），平台 admin 刻意无推送权。"
         />
       )}

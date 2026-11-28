@@ -4,7 +4,7 @@
 
 > 对接 [argus-service](https://github.com/yi-nology/argus-service) 受控变更 API。
 > 产品入口：[yi-nology/argus](https://github.com/yi-nology/argus)
-> 工程差距分析与演进路线：见 `docs/argus-engineering-gap-analysis.md`
+> 工程差距分析与演进路线：见 [argus-service/docs/design/engineering-gap-analysis.md](../argus-service/docs/design/engineering-gap-analysis.md)
 
 ## 技术栈
 

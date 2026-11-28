@@ -34,14 +34,16 @@ jobs:
       - name: Install
         run: npm ci --no-audit --no-fund
 
+      # 门禁用 --if-present：main 上还没有 lint/format/token 脚本时跳过而不是
+      # 报错；等带工具链的 PR 合入后自动生效（新脚本 = 自动开始卡）。
       - name: Lint
-        run: npm run lint
+        run: npm run --if-present lint
 
       - name: Format check
-        run: npm run format:check
+        run: npm run --if-present format:check
 
       - name: Visual token gate
-        run: npm run check:raw-values
+        run: npm run --if-present check:raw-values
 
       - name: Typecheck
         run: npm run typecheck

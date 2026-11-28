@@ -1,19 +1,56 @@
-/* Argus 全局样式 —— 石墨深底 + 单一蓝色强调，数据优先；无渐变/光晕装饰 */
+/* Argus 全局样式 —— 明亮企业风：实体表面 + 1px 边框 + 排版标尺。
+ * 纪律：本文件不得出现具体色值（由 tokens.ts 运行时写入 :root），也不做
+ * 装饰性效果（毛玻璃 / 渐变 / 光晕 / 粒子 / 呼吸动画）。层级靠排版与语义色。 */
 
 :root {
-  --bg: #0b0f16;
-  --bg-2: #121826;
-  --glass: rgba(18, 24, 36, 0.78);
-  --border: rgba(148, 163, 184, 0.14);
-  --cyan: #5b8def;
-  --violet: #8b7cf6;
-  --emerald: #34d399;
-  --amber: #f0b429;
-  --rose: #f07178;
-  --text: #e6ebf5;
-  --text2: #9aa8bc;
-  --text3: #64748b;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+  /* 色值由 src/theme/tokens.ts 的 applyPalette() 注入；此处给首帧兜底。 */
+  --color-canvas: #f6f8fa;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #eef1f5;
+  --color-surface-muted: #f2f4f8;
+  --color-border: #d0d7de;
+  --color-border-muted: #e4e8ee;
+  --color-text: #1f2328;
+  --color-text-muted: #59636e;
+  --color-text-subtle: #78828f;
+  --color-accent: #0969da;
+  --color-accent-subtle: #eef4fd;
+  --color-success: #1a7f37;
+  --color-success-subtle: #dafbe1;
+  --color-attention: #9a6700;
+  --color-attention-subtle: #fff8c5;
+  --color-danger: #cf222e;
+  --color-danger-subtle: #ffebe9;
+  --color-info: #0969da;
+  --color-info-subtle: #ddf4ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #0d1117;
+    --color-surface: #161b22;
+    --color-surface-subtle: #21262d;
+    --color-surface-muted: #1c2128;
+    --color-border: #30363d;
+    --color-border-muted: #21262d;
+    --color-text: #e6edf3;
+    --color-text-muted: #8b949e;
+    --color-text-subtle: #6e7681;
+    --color-accent: #4493f8;
+    --color-accent-subtle: #121d2f;
+    --color-success: #3fb950;
+    --color-success-subtle: #12261e;
+    --color-attention: #d29922;
+    --color-attention-subtle: #272115;
+    --color-danger: #f85149;
+    --color-danger-subtle: #25171c;
+    --color-info: #4493f8;
+    --color-info-subtle: #121d2f;
+  }
 }
 
 * {
@@ -28,23 +65,31 @@ body,
 }
 
 body {
-  color: var(--text);
-  background: var(--bg);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    'PingFang SC',
-    'Hiragino Sans GB',
-    'Noto Sans CJK SC',
-    'Microsoft YaHei',
-    sans-serif;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
-#root {
-  position: relative;
-  z-index: 1;
+/* 键盘可达性底线：所有可交互元素必须有可见焦点环。 */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* antd v6 Select/AutoComplete 的 DOM 是 input.ant-select-input ← .ant-select-content ← .ant-select，
+   内层 input 被设成 outline:none，而焦点环本该由外层承担——两者都没有时键盘用户
+   看不到焦点落在哪个下拉上（WCAG 2.4.7）。用 focus-within 打在 .ant-select 上。 */
+.ant-select:focus-within,
+.ant-select-focused,
+.ant-input:focus-visible,
+.ant-input-number:focus-within,
+.ant-picker-focused {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: 6px;
 }
 
 .mono {
@@ -52,92 +97,183 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- 玻璃面板 ---- */
-.glass {
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  backdrop-filter: blur(10px) saturate(115%);
-  -webkit-backdrop-filter: blur(10px) saturate(115%);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.24);
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
-.glass-hover {
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+/* ---- 排版标尺（替代 opacity 层级与裸 fontSize） ---- */
+.t-xs {
+  font-size: 12px;
+  line-height: 1.5;
 }
-.glass-hover:hover {
-  border-color: rgba(91, 141, 239, 0.28);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.30);
+.t-sm {
+  font-size: 13px;
+  line-height: 1.55;
 }
-
-/* ---- 状态光点 ---- */
-.dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
+.t-md {
+  font-size: 14px;
 }
-.dot.ok {
-  background: var(--emerald);
+.t-lg {
+  font-size: 16px;
+  font-weight: 500;
 }
-.dot.err {
-  background: var(--rose);
+.t-xl {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
 }
-.dot.warn {
-  background: var(--amber);
+.t-xxl {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
 }
-.dot.run {
-  background: var(--cyan);
-  animation: pulse 1.6s ease-in-out infinite;
+.t-medium {
+  font-weight: 500;
 }
-.dot.mute {
-  background: var(--text3);
+.t-semibold {
+  font-weight: 600;
 }
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+/* 次要 / 三级文本：靠语义色分层，不用 opacity 压字 */
+.meta {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+.meta-sm {
+  color: var(--color-text-subtle);
+  font-size: 12px;
 }
 
-/* ---- 页面容器 ---- */
+/* ---- 实体面板（替代毛玻璃 .glass） ---- */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
+}
+.panel-hover {
+  transition: border-color 0.12s ease-out;
+}
+.panel-hover:hover {
+  border-color: var(--color-border);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-muted);
+}
+.panel-body {
+  padding: 16px;
+}
+
+/* ---- 页面骨架 ---- */
 .page {
   padding: 24px 28px 48px;
   max-width: 1280px;
   margin: 0 auto;
-  animation: fadeUp 0.3s ease both;
 }
-
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 .page-title {
-  font-size: 23px;
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.01em;
   margin: 0 0 4px;
 }
-
 .page-sub {
-  color: var(--text2);
+  color: var(--color-text-muted);
   font-size: 13px;
   margin: 0 0 20px;
+}
+.section {
+  margin-top: 20px;
+}
+
+/* ---- 状态点（静止；运行态用文字表达，不做呼吸动画） ---- */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+.dot.ok {
+  background: var(--color-success);
+}
+.dot.err {
+  background: var(--color-danger);
+}
+.dot.warn {
+  background: var(--color-attention);
+}
+.dot.run {
+  background: var(--color-accent);
+}
+.dot.mute {
+  background: var(--color-text-subtle);
+}
+
+/* ---- 严重级徽章（带文字，不用色点暗示） ---- */
+.sev {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.sev-critical {
+  color: var(--color-sev-critical);
+  background: var(--color-sev-critical-subtle);
+  border-color: var(--color-sev-critical);
+}
+.sev-high {
+  color: var(--color-sev-high);
+  background: var(--color-sev-high-subtle);
+  border-color: var(--color-sev-high);
+}
+.sev-medium {
+  color: var(--color-sev-medium);
+  background: var(--color-sev-medium-subtle);
+  border-color: var(--color-sev-medium);
+}
+.sev-low {
+  color: var(--color-sev-low);
+  background: var(--color-sev-low-subtle);
+  border-color: var(--color-sev-low);
+}
+.sev-info {
+  color: var(--color-sev-info);
+  background: var(--color-sev-info-subtle);
+  border-color: var(--color-sev-info);
+}
+
+/* 裁决/状态语义徽章（approve / comment / request_changes 与通用态）。 */
+.sev-success {
+  color: var(--color-success);
+  background: var(--color-success-subtle);
+  border-color: var(--color-success);
+}
+.sev-attention {
+  color: var(--color-attention);
+  background: var(--color-attention-subtle);
+  border-color: var(--color-attention);
+}
+.sev-danger {
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger);
+}
+.sev-accent {
+  color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
 }
 
 /* ---- 资格门检查行 ---- */
@@ -146,51 +282,49 @@ body {
   gap: 12px;
   align-items: flex-start;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
-  transition: background 0.2s ease;
 }
 .gate-row + .gate-row {
   margin-top: 6px;
 }
 .gate-row.ok {
-  background: rgba(52, 211, 153, 0.08);
-  border-color: rgba(52, 211, 153, 0.2);
+  background: var(--color-success-subtle);
+  border-color: var(--color-success);
 }
 .gate-row.err {
-  background: rgba(251, 113, 133, 0.08);
-  border-color: rgba(251, 113, 133, 0.22);
+  background: var(--color-danger-subtle);
+  border-color: var(--color-danger);
 }
 .gate-row .code {
   min-width: 160px;
   font-family: var(--mono);
   font-size: 12px;
-  color: var(--text2);
+  color: var(--color-text-muted);
 }
 .gate-row .msg {
   flex: 1;
   font-size: 13px;
 }
 
-/* ---- 报告代码块 ---- */
+/* ---- 报告代码块 / Markdown ---- */
 .report-box {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
-  background: rgba(10, 14, 22, 0.70);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
   padding: 16px;
   max-height: 520px;
   overflow: auto;
 }
 
-/* ---- 报告 Markdown 渲染 ---- */
 .report-md {
-  background: rgba(10, 14, 22, 0.55);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-muted);
+  border-radius: 8px;
   padding: 4px 20px 12px;
   max-height: 720px;
   overflow: auto;
@@ -206,29 +340,30 @@ body {
 }
 .report-md th,
 .report-md td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border-muted);
   padding: 4px 10px;
 }
 .report-md th {
-  background: rgba(91, 141, 239, 0.08);
+  background: var(--color-surface-subtle);
+  font-weight: 600;
 }
 .report-md blockquote {
-  border-left: 3px solid var(--border);
+  border-left: 3px solid var(--color-border);
   margin: 8px 0;
   padding: 4px 12px;
-  color: var(--text2);
+  color: var(--color-text-muted);
 }
 .report-md code {
   font-family: var(--mono);
   font-size: 12px;
-  background: rgba(91, 141, 239, 0.08);
+  background: var(--color-surface-subtle);
   padding: 1px 5px;
   border-radius: 4px;
 }
 .report-md pre {
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--color-surface-subtle);
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   overflow-x: auto;
 }
 .report-md pre code {
@@ -236,29 +371,42 @@ body {
   padding: 0;
 }
 
-/* ---- Ant Design X 问答区：中性配色（无紫/蓝化学气泡） ---- */
+/* ---- Ant Design X 问答区：中性配色 ---- */
 .x-chat-wrap .ant-bubble-content {
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .x-chat-wrap .ant-bubble-start .ant-bubble-content {
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid var(--border);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-muted);
 }
 .x-chat-wrap .ant-sender {
-  border-radius: 10px;
-  border-color: var(--border);
-}
-.x-chat-wrap .ant-sender:focus-within {
-  border-color: rgba(91, 141, 239, 0.45);
+  border-radius: 8px;
 }
 
-/* 滚动条 */
+/* ---- 列表行（统一节奏，替代手搓 div） ---- */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--color-border-muted);
+  cursor: pointer;
+  transition: background 0.12s ease-out;
+}
+.list-row:hover {
+  background: var(--color-surface-muted);
+}
+.list-row:last-child {
+  border-bottom: none;
+}
+
+/* ---- 滚动条 ---- */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.20);
+  background: var(--color-border);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-track {

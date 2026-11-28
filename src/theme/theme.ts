@@ -1,99 +1,132 @@
 /**
- * Argus 暗色主题（antd v6 token + 自定义 CSS 变量）。
- * 基调：石墨深底 + 单一蓝色强调；无渐变/光晕装饰，数据可读性优先。
+ * antd v6 主题配置：从 tokens 的调色板派生，浅/深双主题共用同一套语义名。
+ * 装饰性效果（渐变 / 光晕 / 毛玻璃）一律不进主题；阴影仅浮层使用。
  */
 import { theme } from 'antd'
 import type { ThemeConfig } from 'antd'
+import { fontSans, paletteDark, paletteLight, shadow, type Palette, type ThemeMode } from './tokens'
 
-export const palette = {
-  bg: '#0b0f16',
-  bgElevated: '#121826',
-  bgGlass: 'rgba(18, 24, 36, 0.78)',
-  border: 'rgba(148, 163, 184, 0.14)',
-  cyan: '#5b8def',
-  violet: '#8b7cf6',
-  emerald: '#34d399',
-  amber: '#f0b429',
-  rose: '#f07178',
-  text: '#e6ebf5',
-  text2: '#9aa8bc',
-  text3: '#64748b',
+function buildTheme(p: Palette, mode: ThemeMode): ThemeConfig {
+  return {
+    // 必须用 algorithm：只覆盖 token 会漏掉派生色（placeholder、Alert 背景、
+    // Menu 文本、Popconfirm 等仍是另一套主题 → 白底浅字/深底深字看不清）。
+    algorithm: mode === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    token: {
+      colorPrimary: p.accent,
+      colorSuccess: p.success,
+      colorWarning: p.attention,
+      colorError: p.danger,
+      colorInfo: p.info,
+      colorBgBase: p.canvas,
+      colorBgContainer: p.surface,
+      colorBgElevated: p.surface,
+      colorBgLayout: p.canvas,
+      colorBgSpotlight: p.surfaceSubtle,
+      colorBorder: p.border,
+      colorBorderSecondary: p.borderMuted,
+      colorText: p.text,
+      colorTextSecondary: p.textMuted,
+      colorTextTertiary: p.textSubtle,
+      colorTextQuaternary: p.textSubtle,
+      colorFillTertiary: p.surfaceSubtle,
+      borderRadius: 6,
+      borderRadiusLG: 8,
+      borderRadiusSM: 4,
+      fontFamily: fontSans,
+      // 阴影只留给浮层；卡片靠 1px 边框分层，不做「发光」。
+      boxShadow: shadow.sm,
+      boxShadowSecondary: shadow.xs,
+      controlHeight: 32,
+      controlHeightSM: 24,
+      controlHeightLG: 36,
+      motionDurationFast: '0.12s',
+      motionDurationMid: '0.18s',
+      motionDurationSlow: '0.24s',
+    },
+    components: {
+      Layout: {
+        bodyBg: p.canvas,
+        headerBg: p.surface,
+        siderBg: p.surface,
+      },
+      Menu: {
+        itemBg: 'transparent',
+        subMenuItemBg: 'transparent',
+        itemSelectedBg: p.accentSubtle,
+        itemSelectedColor: p.accent,
+        itemColor: p.textMuted,
+        itemHoverBg: p.surfaceMuted,
+        itemHoverColor: p.text,
+        itemBorderRadius: 6,
+        itemMarginInline: 8,
+        itemHeight: 34,
+      },
+      Card: {
+        colorBgContainer: p.surface,
+        colorBorderSecondary: p.borderMuted,
+        headerBg: p.surface,
+        headerFontSize: 14,
+      },
+      Table: {
+        colorBgContainer: p.surface,
+        headerBg: p.surfaceSubtle,
+        headerColor: p.textMuted,
+        rowHoverBg: p.surfaceMuted,
+        rowSelectedBg: p.accentSubtle,
+        borderColor: p.borderMuted,
+        headerSplitColor: p.borderMuted,
+      },
+      Button: {
+        primaryShadow: 'none',
+        defaultBg: p.surface,
+        defaultBorderColor: p.border,
+        defaultColor: p.text,
+        fontWeight: 500,
+      },
+      Tag: {
+        defaultBg: p.surfaceSubtle,
+        defaultColor: p.textMuted,
+      },
+      Input: {
+        activeShadow: `0 0 0 2px ${p.accentSubtle}`,
+        activeBorderColor: p.accent,
+      },
+      Select: {
+        activeOutlineColor: p.accentSubtle,
+        optionSelectedBg: p.accentSubtle,
+      },
+      Segmented: {
+        itemSelectedBg: p.surface,
+        itemSelectedColor: p.text,
+        trackBg: p.surfaceSubtle,
+      },
+      Spin: {
+        colorPrimary: p.accent,
+      },
+      Alert: {
+        colorInfoBg: p.infoSubtle,
+        colorSuccessBg: p.successSubtle,
+        colorWarningBg: p.attentionSubtle,
+        colorErrorBg: p.dangerSubtle,
+      },
+      Descriptions: {
+        labelBg: p.surfaceSubtle,
+      },
+      Modal: {
+        contentBg: p.surface,
+        headerBg: p.surface,
+      },
+      Tooltip: {
+        colorBgSpotlight: p.text,
+        colorTextLightSolid: p.surface,
+      },
+    },
+  }
 }
 
-export const antdTheme: ThemeConfig = {
-  // 必须用 darkAlgorithm：只覆盖 token 会漏掉派生色（placeholder、Alert info
-  // 背景、Menu 文本、Popconfirm 等仍是 light 主题 → 白底浅字/深底深字看不清）。
-  algorithm: theme.darkAlgorithm,
-  token: {
-    colorPrimary: palette.cyan,
-    colorSuccess: palette.emerald,
-    colorWarning: palette.amber,
-    colorError: palette.rose,
-    colorInfo: palette.violet,
-    colorBgBase: palette.bg,
-    colorBgContainer: palette.bgElevated,
-    colorBgElevated: '#161d2c',
-    colorBgLayout: palette.bg,
-    colorBorder: palette.border,
-    colorBorderSecondary: 'rgba(148,163,184,0.09)',
-    colorText: palette.text,
-    colorTextSecondary: palette.text2,
-    colorTextTertiary: palette.text3,
-    borderRadius: 8,
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif",
-    // 暗色下阴影过重会脏，统一压扁
-    boxShadow: '0 6px 24px rgba(0,0,0,0.28)',
-    boxShadowSecondary: '0 3px 12px rgba(0,0,0,0.22)',
-  },
-  components: {
-    Layout: {
-      bodyBg: palette.bg,
-      headerBg: 'transparent',
-      siderBg: 'transparent',
-    },
-    Menu: {
-      darkItemBg: 'transparent',
-      darkSubMenuItemBg: 'transparent',
-      darkItemSelectedBg: 'rgba(91,141,239,0.14)',
-      darkItemSelectedColor: '#c7d6ff',
-      darkItemColor: palette.text2,
-      itemBorderRadius: 6,
-      itemMarginInline: 8,
-    },
-    Card: {
-      colorBgContainer: palette.bgGlass,
-      colorBorderSecondary: palette.border,
-    },
-    Table: {
-      colorBgContainer: 'transparent',
-      headerBg: 'rgba(148,163,184,0.06)',
-      headerColor: palette.text2,
-      rowHoverBg: 'rgba(91,141,239,0.06)',
-      borderColor: palette.border,
-    },
-    Button: {
-      primaryShadow: 'none',
-      defaultBg: 'rgba(148,163,184,0.06)',
-      defaultBorderColor: palette.border,
-      defaultColor: palette.text,
-    },
-    Tag: {
-      defaultBg: 'rgba(148,163,184,0.10)',
-      defaultColor: palette.text2,
-    },
-    Input: {
-      activeShadow: '0 0 0 2px rgba(91,141,239,0.18)',
-    },
-    Select: {
-      activeOutlineColor: 'rgba(91,141,239,0.28)',
-    },
-    Spin: {
-      colorPrimary: palette.cyan,
-    },
-    Segmented: {
-      itemSelectedBg: 'rgba(91,141,239,0.16)',
-      itemSelectedColor: '#c7d6ff',
-    },
-  },
+export const lightTheme = buildTheme(paletteLight, 'light')
+export const darkTheme = buildTheme(paletteDark, 'dark')
+
+export function themeFor(mode: ThemeMode): ThemeConfig {
+  return mode === 'dark' ? darkTheme : lightTheme
 }

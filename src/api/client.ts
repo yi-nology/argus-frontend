@@ -634,46 +634,65 @@ export interface RepoSettingRow {
  *
  * EventSource 不能带 Authorization 头，这里用 fetch + ReadableStream 手工分帧
  * （event:/data: 行，空行分帧；": " 注释保活帧忽略）。返回退订函数（abort）。
- * 连接异常静默结束——页面已有手动刷新兜底，不做重试风暴。
+ *
+ * 断线自动重连：服务端滚动重启/网络抖动后指数退避重试（1s 起倍增，封顶 30s）；
+ * 流有字节流动即视为健康并重置退避（保活帧也算）。手动退订后不再重连。
  */
+const SSE_RETRY_INITIAL_MS = 1_000
+const SSE_RETRY_MAX_MS = 30_000
+
 export function subscribeEvents(onEvent: (e: TaskEvent) => void): () => void {
   const ctrl = new AbortController()
-  const run = async () => {
-    try {
-      const headers: Record<string, string> = { Accept: 'text/event-stream' }
-      const tok = getToken()
-      if (tok) headers.Authorization = `Bearer ${tok}`
-      const res = await fetch(`${API_BASE}/events`, { headers, signal: ctrl.signal })
-      if (!res.ok || !res.body) return
-      const reader = res.body.getReader()
-      const dec = new TextDecoder()
-      let buf = ''
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buf += dec.decode(value, { stream: true })
-        let idx = buf.indexOf('\n\n')
-        while (idx >= 0) {
-          const frame = buf.slice(0, idx)
-          buf = buf.slice(idx + 2)
-          let data = ''
-          for (const line of frame.split('\n')) {
-            if (line.startsWith('data:')) data += line.slice(5).trim()
-          }
-          if (data) {
-            try {
-              onEvent(JSON.parse(data) as TaskEvent)
-            } catch {
-              /* 非 JSON 帧（保活等）忽略 */
+  let stopped = false
+  let retryMs = SSE_RETRY_INITIAL_MS
+
+  const connect = async () => {
+    for (;;) {
+      if (stopped) return
+      try {
+        const headers: Record<string, string> = { Accept: 'text/event-stream' }
+        const tok = getToken()
+        if (tok) headers.Authorization = `Bearer ${tok}`
+        const res = await fetch(`${API_BASE}/events`, { headers, signal: ctrl.signal })
+        if (!res.ok || !res.body) throw new Error(`events ${res.status}`)
+        const reader = res.body.getReader()
+        const dec = new TextDecoder()
+        let buf = ''
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value?.length) retryMs = SSE_RETRY_INITIAL_MS // 流动中=健康，退避归零
+          buf += dec.decode(value, { stream: true })
+          let idx = buf.indexOf('\n\n')
+          while (idx >= 0) {
+            const frame = buf.slice(0, idx)
+            buf = buf.slice(idx + 2)
+            let data = ''
+            for (const line of frame.split('\n')) {
+              if (line.startsWith('data:')) data += line.slice(5).trim()
             }
+            if (data) {
+              try {
+                onEvent(JSON.parse(data) as TaskEvent)
+              } catch {
+                /* 非 JSON 帧（保活等）忽略 */
+              }
+            }
+            idx = buf.indexOf('\n\n')
           }
-          idx = buf.indexOf('\n\n')
         }
+      } catch {
+        /* abort / 网络中断：落到下方重连判定 */
       }
-    } catch {
-      /* abort / 网络中断：静默 */
+      // 主动退订（abort）不再重连；异常结束/服务端主动断开则按退避重试。
+      if (stopped || ctrl.signal.aborted) return
+      await new Promise((resolve) => setTimeout(resolve, retryMs))
+      retryMs = Math.min(retryMs * 2, SSE_RETRY_MAX_MS)
     }
   }
-  void run()
-  return () => ctrl.abort()
+  void connect()
+  return () => {
+    stopped = true
+    ctrl.abort()
+  }
 }
